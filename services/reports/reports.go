@@ -40,8 +40,9 @@ type Event struct {
 
 // Query holds the results of a database query operation
 type Query struct {
-	ID   uint64
-	Rows *sql.Rows
+	ID         uint64
+	Rows       *sql.Rows
+	CreateTime time.Time
 }
 
 // QueryCategoriesOptions stores the query options for CATEGORY type reports
@@ -110,6 +111,7 @@ var queriesLock sync.RWMutex
 var queryID uint64
 var eventQueue = make(chan Event, 10000)
 var cloudQueue = make(chan Event, 1000)
+var queryQueue = make(chan *Query, 1000)
 var preparedStatements = map[string]*sql.Stmt{}
 var preparedStatementsMutex = sync.RWMutex{}
 
@@ -176,6 +178,7 @@ func Startup() {
 
 	go eventLogger(eventBatchSize)
 	go dbCleaner()
+	go queryCleaner()
 
 	if !kernel.FlagNoCloud {
 		go cloudSender()
@@ -260,16 +263,19 @@ func CreateQuery(reportEntryStr string) (*Query, error) {
 	q := new(Query)
 	q.ID = atomic.AddUint64(&queryID, 1)
 	q.Rows = rows
+	q.CreateTime = time.Now()
 
 	queriesLock.Lock()
 	queriesMap[q.ID] = q
 	queriesLock.Unlock()
 
 	// I believe this is here to cleanup stray queries that may be locking the database?
-	go func() {
-		time.Sleep(60 * time.Second)
-		cleanupQuery(q)
-	}()
+	select {
+	case queryQueue <- q:
+	default:
+		// log warning that queryQueue is at capacity
+		logger.Warn("%OC|Query queue at capacity[%d]. Dropping query: %v\n", "reports_query_queue_full", 100, cap(queryQueue), q)
+	}
 	return q, nil
 }
 
@@ -899,6 +905,41 @@ func mergeConditions(reportEntry *ReportEntry) {
 		reportEntry.Conditions = append(reportEntry.Conditions, reportEntry.UserConditions...)
 	}
 	reportEntry.UserConditions = []ReportCondition{}
+}
+
+/**
+ * query cleaner monitors the open query batches and closes them after some amount of seconds
+**/
+func queryCleaner() {
+	var queryBatch []*Query
+	var lastClean time.Time
+	waitTime := 60.0
+	lastClean = time.Now()
+
+	for {
+		// Store query pointers here
+		queryBatch = append(queryBatch, <-queryQueue)
+
+		//Every 30s cleanup all queries
+		if len(queryBatch) > 0 && time.Since(lastClean).Seconds() > waitTime {
+			logger.Info("Starting batch clean with a batch of size: %v \n", len(queryBatch))
+			var newBatch []*Query
+
+			for _, q := range queryBatch {
+				// Remove old queries
+				if time.Since(q.CreateTime).Seconds() > waitTime {
+					cleanupQuery(q)
+				} else {
+					// move in process queries into the batch
+					newBatch = append(newBatch, q)
+				}
+			}
+			logger.Info("Cleanup finished, Remaining batch size: %v, Removed %v queries.\n", len(newBatch), len(queryBatch)-len(newBatch))
+
+			queryBatch = newBatch
+			lastClean = time.Now()
+		}
+	}
 }
 
 /**
