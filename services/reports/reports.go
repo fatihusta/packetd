@@ -269,7 +269,7 @@ func CreateQuery(reportEntryStr string) (*Query, error) {
 	queriesMap[q.ID] = q
 	queriesLock.Unlock()
 
-	// I believe this is here to cleanup stray queries that may be locking the database?
+	// Send query pointer to the queryQueue for eventual closing
 	select {
 	case queryQueue <- q:
 	default:
@@ -922,7 +922,7 @@ func queryCleaner() {
 
 		//Every 30s cleanup all queries
 		if len(queryBatch) > 0 && time.Since(lastClean).Seconds() > waitTime {
-			logger.Info("Starting batch clean with a batch of size: %v \n", len(queryBatch))
+			logger.Debug("QueryCleaner: Starting batch clean with a batch of size: %v \n", len(queryBatch))
 			var newBatch []*Query
 
 			for _, q := range queryBatch {
@@ -934,7 +934,7 @@ func queryCleaner() {
 					newBatch = append(newBatch, q)
 				}
 			}
-			logger.Info("Cleanup finished, Remaining batch size: %v, Removed %v queries.\n", len(newBatch), len(queryBatch)-len(newBatch))
+			logger.Debug("QueryCleaner: Cleanup finished, Remaining batch size: %v, Removed %v queries.\n", len(newBatch), len(queryBatch)-len(newBatch))
 
 			queryBatch = newBatch
 			lastClean = time.Now()
