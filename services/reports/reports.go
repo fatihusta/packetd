@@ -166,13 +166,13 @@ func Startup() {
 		logger.Info("SQLite3 Database Version:%s  File:%s/%s  Limit:%d MB\n", dbVersion, dbFILEPATH, dbFILENAME, dbSizeLimit/oneMEGABYTE)
 	}
 
+	dbMain.SetMaxOpenConns(4)
+	dbMain.SetMaxIdleConns(2)
+
 	// enable auto vaccuum = FULL, this will clean up empty pages by moving them
 	// to the end of the DB file. This will reclaim data from data that has been
 	// removed from the database.
 	runSQL("PRAGMA auto_vacuum = FULL")
-
-	dbMain.SetMaxOpenConns(4)
-	dbMain.SetMaxIdleConns(2)
 
 	createTables()
 
