@@ -393,6 +393,19 @@ func eventLogger() {
 	var lastInsert time.Time
 	waitTime := 60.0
 
+	// If eventLogger returns for some reason,then the goroutine is dying and we need to recover it
+	defer func() {
+		// this indicates we are in a recovery attempt
+		if r := recover(); r != nil {
+			logger.Warn("eventLogger processing has failed, attempting to recover... \n")
+			logger.Warn("Remaking eventQueue channel... \n")
+			// remake channel
+			makeEventQueue()
+			logger.Warn("Creating new eventLogger goroutine...  \n")
+			go eventLogger()
+		}
+	}()
+
 	for {
 		// read data out of the eventQueue into the eventBatch
 		eventBatch = append(eventBatch, <-eventQueue)
@@ -409,11 +422,16 @@ func eventLogger() {
 			tx, err := dbMain.BeginTx(ctx, nil)
 			if err != nil {
 				logger.Warn("Failed to begin transaction: %s\n", err.Error())
+				panic(fmt.Sprintf("Failed to begin transaction: %s\n", err.Error()))
 			}
 
 			//iterate events in the batch and send them into the db transaction
 			for _, event := range eventBatch {
-				eventToTransaction(event, tx)
+				err = eventToTransaction(event, tx)
+				if err != nil {
+					logger.Warn("Event to transaction failed: %s\n", err.Error())
+					panic(fmt.Sprintf("Event to transaction failed: %s\n", err.Error()))
+				}
 			}
 
 			// end transaction
@@ -421,6 +439,7 @@ func eventLogger() {
 			if err != nil {
 				tx.Rollback()
 				logger.Warn("Failed to commit transaction: %s\n", err.Error())
+				panic(fmt.Sprintf("Failed to commit transaction: %s\n", err.Error()))
 			}
 
 			logger.Debug("Transaction completed, %v items processed at %v .\n", batchCount, lastInsert)
@@ -487,11 +506,17 @@ func eventToTransaction(event *Event, tx *sql.Tx) error {
 	res, err := tx.Exec(sqlStr, values...)
 	if err != nil {
 		logger.Warn("Failed to execute transaction: %s %s\n", err.Error(), sqlStr)
-		return
+		return err
 	}
 
-	rowCount, _ := res.RowsAffected()
+	rowCount, err := res.RowsAffected()
+	if err != nil {
+		logger.Warn("Failed to count rows affected: %s %s \n", err.Error(), sqlStr)
+		return err
+	}
 	logger.Debug("SQL:%s ROWS:%d\n", sqlStr, rowCount)
+
+	return nil
 }
 
 // CloudEvent adds an Event to the cloudQueue for later sending to the cloud
@@ -525,6 +550,18 @@ func cloudSender() {
 	client := &http.Client{Transport: transport, Timeout: time.Duration(5 * time.Second)}
 	target := fmt.Sprintf("https://database.untangle.com/v1/put?source=%s&type=db&queueName=mfw_events", uid)
 
+	// If cloudSender returns for some reason,then the goroutine is dying and we need to recover it
+	defer func() {
+		// this indicates we are in a recovery attempt
+		if r := recover(); r != nil {
+			logger.Warn("cloudSender processing has failed, attempting to recover... \n")
+			logger.Warn("Remaking cloudQueue channel... \n")
+			// remake channel
+			makeCloudQueue()
+			logger.Warn("Creating new cloudSender goroutine...  \n")
+			go cloudSender()
+		}
+	}()
 	for {
 		event := <-cloudQueue
 		message, err := json.Marshal(event)
@@ -930,6 +967,18 @@ func queryCleaner() {
 	waitTime := 60.0
 	lastClean = time.Now()
 
+	// If queryCleaner returns for some reason,then the goroutine is dying and we need to recover it
+	defer func() {
+		// this indicates we are in a recovery attempt
+		if r := recover(); r != nil {
+			logger.Warn("queryCleaner processing has failed, attempting to recover... \n")
+			logger.Warn("Remaking queryQueue channel... \n")
+			// remake channel
+			makeQueryQueue()
+			logger.Warn("Creating new queryCleaner goroutine...  \n")
+			go queryCleaner()
+		}
+	}()
 	for {
 		// Store query pointers here
 		queryBatch = append(queryBatch, <-queryQueue)
@@ -970,6 +1019,16 @@ func dbCleaner() {
 	ch := make(chan bool, 1)
 	ch <- true
 
+	// If dbCleaner returns for some reason,then the goroutine is dying and we need to recover it
+	defer func() {
+		// this indicates we are in a recovery attempt
+		if r := recover(); r != nil {
+			logger.Warn("dbCleaner processing has failed, attempting to recover... \n")
+			logger.Warn("Creating new dbCleaner goroutine...  \n")
+			go dbCleaner()
+		}
+	}()
+
 	for {
 		select {
 		case <-ch:
@@ -1001,6 +1060,7 @@ func dbCleaner() {
 		tx, err := dbMain.Begin()
 		if err != nil {
 			logger.Warn("Failed to begin transaction: %s\n", err.Error())
+			panic(fmt.Sprintf("Failed to begin transaction: %s\n", err.Error()))
 		}
 
 		trimPercent("sessions", .10, tx)
@@ -1014,6 +1074,7 @@ func dbCleaner() {
 		if err != nil {
 			tx.Rollback()
 			logger.Warn("Failed to commit transaction: %s\n", err.Error())
+			panic(fmt.Sprintf("Failed to commit transaction: %s\n", err.Error()))
 		}
 		logger.Info("Database trim operation completed\n")
 
