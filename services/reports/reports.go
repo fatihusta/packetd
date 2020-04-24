@@ -327,8 +327,8 @@ func GetData(queryID uint64) (string, error) {
 	q := queriesMap[queryID]
 	queriesLock.RUnlock()
 	if q == nil {
-		logger.Warn("Query not found: %d\n", queryID)
-		return "", errors.New("Query ID not found")
+		logger.Warn("GetData: Query not found: %d\n", queryID)
+		return "", errors.New("GetData: Query ID not found")
 	}
 	result, err := getRows(q.Rows, 1000)
 	if err != nil {
@@ -348,8 +348,8 @@ func CloseQuery(queryID uint64) (string, error) {
 	q := queriesMap[queryID]
 	queriesLock.RUnlock()
 	if q == nil {
-		logger.Warn("Query not found: %d\n", queryID)
-		return "", errors.New("Query ID not found")
+		logger.Warn("CloseQuery: Query not found: %d\n", queryID)
+		return "", errors.New("CloseQuery: Query ID not found")
 	}
 	cleanupQuery(q)
 	return "Success", nil
