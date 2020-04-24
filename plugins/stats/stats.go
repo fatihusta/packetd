@@ -375,7 +375,7 @@ func logInterfaceStats(seconds uint64, interfaceID int, combo Collector, passive
 
 	// for WAN interfaces we also send the stats to the cloud
 	if getInterfaceWanFlag(diffInfo.Iface) {
-		reports.CloudEvent(event)
+		reports.CloudEvent(&event)
 	}
 }
 

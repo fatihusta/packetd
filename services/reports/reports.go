@@ -109,9 +109,13 @@ var dbMain *sql.DB
 var queriesMap = make(map[uint64]*Query)
 var queriesLock sync.RWMutex
 var queryID uint64
-var eventQueue = make(chan Event, 10000)
-var cloudQueue = make(chan Event, 1000)
-var queryQueue = make(chan *Query, 1000)
+
+var eventQueue chan *Event
+var cloudQueue chan *Event
+var queryQueue chan *Query
+
+// eventBatchSize is the size of event batches for batching inserts/updates from the event queue
+var eventBatchSize int = 1000
 var preparedStatements = map[string]*sql.Stmt{}
 var preparedStatementsMutex = sync.RWMutex{}
 
@@ -138,8 +142,6 @@ func Startup() {
 	var stat syscall.Statfs_t
 	var dsn string
 	var err error
-	// eventBatchSize is the size of event batches for batching inserts/updates from the event queue
-	var eventBatchSize int
 
 	// get the file system stats for the path where the database will be stored
 	syscall.Statfs(dbFILEPATH, &stat)
@@ -149,6 +151,11 @@ func Startup() {
 
 	// set the event log processing batch size
 	eventBatchSize = 1000
+
+	// make the global queues
+	makeEventQueue()
+	makeQueryQueue()
+	makeCloudQueue()
 
 	// register a custom driver with a connect hook where we can set our pragma's for
 	// all connections that get created. This is needed because pragma's are applied
@@ -176,7 +183,7 @@ func Startup() {
 
 	createTables()
 
-	go eventLogger(eventBatchSize)
+	go eventLogger()
 	go dbCleaner()
 	go queryCleaner()
 
@@ -364,7 +371,7 @@ func CreateEvent(name string, table string, sqlOp int, columns map[string]interf
 // LogEvent adds an event to the eventQueue for later logging
 func LogEvent(event Event) error {
 	select {
-	case eventQueue <- event:
+	case eventQueue <- &event:
 	default:
 		// log the message with the OC verb passing the counter name and the repeat message limit as the first two arguments
 		logger.Warn("%OC|Event queue at capacity[%d]. Dropping event: %v\n", "reports_event_queue_full", 100, cap(eventQueue), event)
@@ -377,9 +384,8 @@ func LogEvent(event Event) error {
 // this processes the items in {eventBatchSize} batches, or after 60 seconds of being unread in the channel
 // items that are not in the current batch will remain
 // unread on the channel until the current batch is committed into the database
-// param eventBatchSize (int) - the size of the batch to commit into the database
-func eventLogger(eventBatchSize int) {
-	var eventBatch []Event
+func eventLogger() {
+	var eventBatch []*Event
 	var lastInsert time.Time
 	waitTime := 60.0
 
@@ -420,7 +426,7 @@ func eventLogger(eventBatchSize int) {
 // eventToTransaction converts the Event object into a Sql Transaction and appends it into the current transaction context
 // param event (Event) - the event to process
 // param tx (*sql.Tx) - the transaction context
-func eventToTransaction(event Event, tx *sql.Tx) {
+func eventToTransaction(event *Event, tx *sql.Tx) error {
 	var sqlStr string
 	var values []interface{}
 	var first = true
@@ -481,7 +487,7 @@ func eventToTransaction(event Event, tx *sql.Tx) {
 }
 
 // CloudEvent adds an Event to the cloudQueue for later sending to the cloud
-func CloudEvent(event Event) error {
+func CloudEvent(event *Event) error {
 	if kernel.FlagNoCloud {
 		return nil
 	}
@@ -1098,4 +1104,17 @@ func runSQL(sqlStr string) string {
 	}
 
 	return result
+}
+
+
+func makeQueryQueue() {
+	queryQueue = make(chan *Query, 1000)
+}
+
+func makeCloudQueue() {
+	cloudQueue = make(chan *Event, 1000)
+}
+
+func makeEventQueue() {
+	eventQueue = make(chan *Event, 10000)
 }
