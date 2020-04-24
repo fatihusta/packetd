@@ -2,6 +2,7 @@ package reports
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
@@ -261,9 +262,12 @@ func CreateQuery(reportEntryStr string) (*Query, error) {
 
 	logger.Debug("SQL Values: %v \n", values)
 
-	rows, err = sqlStmt.Query(values...)
+	ctx, cancel := context.WithTimeout(context.Background(), 5000*time.Millisecond)
+	//defer cancel()
+	rows, err = sqlStmt.QueryContext(ctx, values...)
 	if err != nil {
 		logger.Err("sqlStmt.Query error: %s\n", err)
+		cancel()
 		return nil, err
 	}
 
@@ -398,7 +402,11 @@ func eventLogger() {
 		if batchCount >= eventBatchSize || time.Since(lastInsert).Seconds() > waitTime {
 			logger.Debug("%v Items ready for batch, starting transaction at %v...\n", batchCount, time.Now())
 
-			tx, err := dbMain.Begin()
+			// If we cannot start the context within 5s, then fail the call
+			ctx, cancel := context.WithTimeout(context.Background(), 5000*time.Millisecond)
+			defer cancel()
+
+			tx, err := dbMain.BeginTx(ctx, nil)
 			if err != nil {
 				logger.Warn("Failed to begin transaction: %s\n", err.Error())
 			}
@@ -1081,8 +1089,10 @@ func runSQL(sqlStr string) string {
 	var result string = ""
 
 	logger.Debug("SQL: %s\n", sqlStr)
-
-	stmt, err = dbMain.Prepare(sqlStr)
+	// If we cannot start the context within 5s, then fail the call
+	ctx, cancel := context.WithTimeout(context.Background(), 5000*time.Millisecond)
+	defer cancel()
+	stmt, err = dbMain.PrepareContext(ctx, sqlStr)
 	if err != nil {
 		logger.Warn("Failed to Prepare statement: %s %s\n", err.Error(), sqlStr)
 		return result
@@ -1090,7 +1100,7 @@ func runSQL(sqlStr string) string {
 
 	defer stmt.Close()
 
-	rows, err = stmt.Query()
+	rows, err = stmt.QueryContext(ctx)
 	if err != nil {
 		logger.Warn("Failed to Query statement: %s %s\n", err.Error(), sqlStr)
 		return result
