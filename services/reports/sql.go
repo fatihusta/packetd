@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -315,8 +316,9 @@ func getDistinctValues(reportEntry *ReportEntry) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	rows, err := dbMain.Query(categoriesSQLStr, conditionValues(reportEntry.Conditions)...)
+	ctx, cancel := context.WithTimeout(context.Background(), 5000*time.Millisecond)
+	rows, err := dbMain.QueryContext(ctx, categoriesSQLStr, conditionValues(reportEntry.Conditions)...)
+	defer cancel()
 	if err != nil {
 		logger.Warn("Failed to get Distinct values: %v\n", err)
 		return nil, err

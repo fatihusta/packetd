@@ -427,7 +427,7 @@ func eventLogger() {
 
 			//iterate events in the batch and send them into the db transaction
 			for _, event := range eventBatch {
-				err = eventToTransaction(event, tx)
+				err = eventToTransaction(ctx, event, tx)
 				if err != nil {
 					logger.Warn("Event to transaction failed: %s\n", err.Error())
 					panic(fmt.Sprintf("Event to transaction failed: %s\n", err.Error()))
@@ -447,13 +447,12 @@ func eventLogger() {
 			lastInsert = time.Now()
 		}
 	}
-
 }
 
 // eventToTransaction converts the Event object into a Sql Transaction and appends it into the current transaction context
 // param event (Event) - the event to process
 // param tx (*sql.Tx) - the transaction context
-func eventToTransaction(event *Event, tx *sql.Tx) error {
+func eventToTransaction(ctx context.Context, event *Event, tx *sql.Tx) error {
 	var sqlStr string
 	var values []interface{}
 	var first = true
@@ -503,7 +502,7 @@ func eventToTransaction(event *Event, tx *sql.Tx) error {
 		}
 	}
 
-	res, err := tx.Exec(sqlStr, values...)
+	res, err := tx.ExecContext(ctx, sqlStr, values...)
 	if err != nil {
 		logger.Warn("Failed to execute transaction: %s %s\n", err.Error(), sqlStr)
 		return err
