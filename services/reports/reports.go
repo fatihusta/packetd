@@ -1080,6 +1080,8 @@ func dbCleaner() {
 		//also run optimize
 		runSQL("PRAGMA optimize")
 
+		runSQL("PRAGMA shrink_memory")
+
 		logger.Info("Database trim operation completed\n")
 
 		currentSize, pageSize, pageCount, maxPageCount, freeCount, err = loadDbStats()
