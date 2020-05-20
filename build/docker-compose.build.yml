@@ -27,3 +27,15 @@ services:
         dockerfile: Dockerfile.build-glibc
       volumes:
         - ..:/go/packetd
+
+
+    # The Dev dockerfile builds packetd with local images, 
+    # runs lint in the build process, -race go param, and adds Delve to 
+    # the image for testing purposes
+
+    dev:
+      build:
+        context: .
+        dockerfile: Dockerfile.dev
+      volumes:
+        - ..:/go/packetd

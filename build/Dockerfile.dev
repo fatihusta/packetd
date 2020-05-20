@@ -1,0 +1,38 @@
+ # this is based on alpine:3.7
+ # this dockerfile is almost identical to Dockerfile.build-musl
+ # except:
+ #  - Update golang:alpine to a version that allows -race with musl (see https://github.com/golang/go/issues/14481)
+ #  - Add Delve packages in to allow remote debugging (WIP)
+ #  - Run golint during the make also
+ #  - Pass the -race flag in for testing purposes
+FROM golang:1.14.3-alpine3.11
+#FROM golang:1.12.1-alpine3.9
+LABEL maintainer="Sebastien Delafond <sdelafond@gmail.com>"
+
+RUN apk update
+RUN apk add --update gcc musl-dev
+
+# build deps for libnetfilter_queue
+RUN apk add libnfnetlink-dev
+RUN apk add libmnl-dev
+RUN apk add linux-headers
+RUN apk add make
+RUN apk add autoconf
+RUN apk add automake
+RUN apk add libtool
+RUN apk add git
+
+# build deps for packetd
+RUN apk add libnetfilter_log-dev
+RUN apk add libnetfilter_conntrack-dev
+RUN apk add libnetfilter_queue-dev
+
+# go get delve
+RUN go get github.com/go-delve/delve/cmd/dlv
+
+# build packetd
+RUN mkdir -p /go/packetd
+VOLUME /go/packetd
+WORKDIR /go/packetd
+CMD ["make", "lint", "all", "GOFLAGS=-race -mod=vendor"]
+#CMD ["dlv", "debug", "--headless", "--listen=:2345", "--api-version=2"]
