@@ -5,8 +5,13 @@
  #  - Add Delve packages in to allow remote debugging (WIP)
  #  - Run golint during the make also
  #  - Pass the -race flag in for testing purposes
-FROM golang:1.14.3-alpine3.11
-#FROM golang:1.12.1-alpine3.9
+#
+#
+# - golang 1.14.3-alpine3.11 allows for data race checking, 
+# but is very resource intensive for some reason 
+# (IE: packetd was taking up 1.5GB on an sdwan VM)
+#FROM golang:1.14.3-alpine3.11
+FROM golang:1.12.1-alpine3.9
 LABEL maintainer="Sebastien Delafond <sdelafond@gmail.com>"
 
 RUN apk update
@@ -34,5 +39,6 @@ RUN go get github.com/go-delve/delve/cmd/dlv
 RUN mkdir -p /go/packetd
 VOLUME /go/packetd
 WORKDIR /go/packetd
-CMD ["make", "lint", "all", "GOFLAGS=-race -mod=vendor"]
-#CMD ["dlv", "debug", "--headless", "--listen=:2345", "--api-version=2"]
+# Remove race for now...
+#CMD ["make", "lint", "all", "GOFLAGS=-race -mod=vendor"]
+CMD ["make", "lint", "all", "GOFLAGS=-mod=vendor"]
