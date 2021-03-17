@@ -31,6 +31,7 @@ import (
 	"github.com/untangle/packetd/plugins/revdns"
 	"github.com/untangle/packetd/plugins/sni"
 	"github.com/untangle/packetd/plugins/stats"
+	"github.com/untangle/packetd/plugins/threatprevention"
 	"github.com/untangle/packetd/services/appclassmanager"
 	"github.com/untangle/packetd/services/certcache"
 	"github.com/untangle/packetd/services/certmanager"
@@ -44,6 +45,7 @@ import (
 	"github.com/untangle/packetd/services/reports"
 	"github.com/untangle/packetd/services/restd"
 	"github.com/untangle/packetd/services/settings"
+	"github.com/untangle/packetd/services/webroot"
 )
 
 const rulesScript = "packetd_rules"
@@ -291,6 +293,7 @@ func startServices() {
 	overseer.Startup()
 	certmanager.Startup()
 	appclassmanager.Startup()
+	webroot.Startup()
 
 	if !kernel.FlagNoCloud {
 		predicttrafficsvc.Startup()
@@ -315,6 +318,7 @@ func stopServices() {
 		settings.Shutdown()
 		dispatch.Shutdown()
 		kernel.Shutdown()
+		webroot.Shutdown()
 		logger.Shutdown()
 		c <- true
 	}()
@@ -337,6 +341,7 @@ func startPlugins() {
 		example.PluginStartup,
 		classify.PluginStartup,
 		geoip.PluginStartup,
+		threatprevention.PluginStartup,
 		certfetch.PluginStartup,
 		certsniff.PluginStartup,
 		dns.PluginStartup,
@@ -366,6 +371,7 @@ func stopPlugins() {
 		example.PluginShutdown,
 		classify.PluginShutdown,
 		geoip.PluginShutdown,
+		threatprevention.PluginShutdown,
 		certfetch.PluginShutdown,
 		certsniff.PluginShutdown,
 		dns.PluginShutdown,
