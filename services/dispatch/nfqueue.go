@@ -190,7 +190,7 @@ func nfqueueCallback(ctid uint32, family uint32, packet gopacket.Packet, packetL
 			if mess.MsgTuple.Protocol != clientSideTuple.Protocol {
 				// If the protocol does not match (e.g.,was TCP but we received ICMP), end this session.
 				session.removeFromSessionTable()
-				dict.AddSessionEntry(ctid, "bypass_packetd", true)
+				kernel.BypassViaNftSet(ctid, PacketdBypassTimeout)
 				removeConntrack(ctid)
 				return NfAccept
 			}
