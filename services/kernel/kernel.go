@@ -470,6 +470,17 @@ func BypassViaNftSet(ctid uint32, timeout uint64) {
 	C.bypass_via_nft_set(C.uint32_t(ctid), C.uint64_t(timeout))
 }
 
+// RemoveBypassEntry removes bypass for ctid in set.
 func RemoveBypassEntry(ctid uint32) {
 	C.remove_bypass_entry(C.uint32_t(ctid))
+}
+
+// NftSetAdd adds ctid in given set.
+func NftSetAdd(system string, pkg string, queue string, ctid uint32, timeout uint64) {
+	C.add_set_elem(C.CString(system), C.CString(pkg), C.CString(queue), C.uint32_t(ctid), C.uint64_t(timeout))
+}
+
+// NftSetRemove removes ctid in given set.
+func NftSetRemove(system string, pkg string, queue string, ctid uint32) {
+	C.del_set_elem(C.CString(system), C.CString(pkg), C.CString(queue), C.uint32_t(ctid))
 }

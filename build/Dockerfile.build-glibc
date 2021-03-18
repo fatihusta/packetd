@@ -1,4 +1,4 @@
-FROM golang:1.12.1
+FROM golang:1.16.0
 LABEL maintainer="Sebastien Delafond <sdelafond@gmail.com>"
 
 USER root
@@ -15,6 +15,7 @@ RUN apt-get install -y libnetfilter-log-dev
 RUN apt-get install -y libnetfilter-queue-dev
 RUN apt-get install -y libnetfilter-conntrack-dev
 RUN apt-get install -y libnftnl-dev
+RUN apt-get install -y libmnl-dev
 
 RUN mkdir -p /go/packetd
 VOLUME /go/packetd

@@ -113,14 +113,14 @@ int manage_set_elem(uint16_t nft_msg_type, char *fam, char *table, char *set, ui
 	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
 	while (ret > 0) {
 		ret = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
-		if (ret <= 0)
+		if (ret <= 0) 
 			break;
 		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
 	}
 
 	mnl_socket_close(nl);
 	if (ret == -1 && errno != EEXIST) {
-		logmessage(LOG_ERR,logsrc,"Could not run mnl callback: %d ctid %u\n", errno, ctid);
+		logmessage(LOG_ERR,logsrc,"Could not run mnl callback: %d ctid %u - %s, %s, %s %u\n", errno, ctid, fam, table, set, portid);
 		return EXIT_FAILURE;
 	}
 
@@ -146,5 +146,3 @@ void remove_bypass_entry(uint32_t ctid)
 {
 	del_set_elem("inet", "packetd", "bypass_packetd", ctid);
 }
-
-
