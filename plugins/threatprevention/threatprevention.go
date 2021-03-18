@@ -135,20 +135,13 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		logger.Debug("TpNfqueueHandler received %d BYTES from %s to %s\n%s\n", mess.Length, mess.IP6Layer.SrcIP, mess.IP6Layer.DstIP, hex.Dump(mess.Packet.Data()))
 	}
 
-	if mess.TCPLayer == nil || mess.MsgTuple.ServerPort != 443 {
-		return result
-	}
-
-	// var srcAddr net.IP
 	var dstAddr net.IP
 
 	if mess.IP6Layer != nil {
-		// srcAddr = mess.IP6Layer.SrcIP
 		dstAddr = mess.IP6Layer.DstIP
 	}
 
 	if mess.IP4Layer != nil {
-		// srcAddr = mess.IP4Layer.SrcIP
 		dstAddr = mess.IP4Layer.DstIP
 	}
 
