@@ -2,21 +2,22 @@ package threatprevention
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
-	"encoding/hex"
 	"strconv"
 	"sync"
 
 	"github.com/untangle/packetd/services/dispatch"
-	"github.com/untangle/packetd/services/logger"
 	"github.com/untangle/packetd/services/kernel"
+	"github.com/untangle/packetd/services/logger"
 	"github.com/untangle/packetd/services/settings"
 	"github.com/untangle/packetd/services/webroot"
 )
 
 const pluginName = "threatprevention"
+
 var tpLevel int
 var tpEnabled bool = false
 
@@ -26,7 +27,8 @@ var rejectInfoLock sync.RWMutex
 
 type contextKey struct {
 	key string
-  }
+}
+
 var connContextKey = &contextKey{"http-conn"}
 
 // PluginStartup function is called to allow plugin specific initialization. We
@@ -54,18 +56,18 @@ func PluginStartup() {
 
 	// Need basic http server to respond to redirect to inform user why they were blocked.
 	server := http.Server{
-	  Addr: ":8485",
-	  ConnContext: saveConnInContext,
-	  Handler: http.HandlerFunc(tpRedirectHandler),
+		Addr:        ":8485",
+		ConnContext: saveConnInContext,
+		Handler:     http.HandlerFunc(tpRedirectHandler),
 	}
 	go server.ListenAndServe()
 
 	// Need basic https server to respond to redirect to inform user why they were blocked.
 	sslserver := http.Server{
-		Addr: ":8486",
+		Addr:        ":8486",
 		ConnContext: saveConnInContext,
-		Handler: http.HandlerFunc(tpRedirectHandler),
-	  }
+		Handler:     http.HandlerFunc(tpRedirectHandler),
+	}
 	go sslserver.ListenAndServeTLS("/tmp/cert.pem", "/tmp/cert.key")
 
 	rejectInfo = make(map[string]interface{})
@@ -85,8 +87,15 @@ func syncCallbackHandler() {
 	enabled, err := settings.GetSettings([]string{"threatprevention", "enabled"})
 	if err != nil {
 		logger.Warn("Failed to read setting value for setting threatprevention/enabled, error: %v\n", err.Error())
+		tpEnabled = false
+		return
 	}
-	tpEnabled = enabled.(bool)
+	tpEnabled, err = strconv.ParseBool(enabled.(string))
+	if err != nil {
+		logger.Warn("Unable to parse threadprevention enabled flag, error: %v\n", err.Error())
+		tpEnabled = false
+		return
+	}
 	// Need to load current threatprevention level from settings.
 	sensitivity, err := settings.GetSettings([]string{"threatprevention", "sensitivity"})
 	if err != nil {
@@ -104,10 +113,10 @@ func syncCallbackHandler() {
 	logger.Debug("Threat prevention level set to %v\n", tpLevel)
 
 	// Parse passlist.
-	passList, err := settings.GetSettings([]string{"threatprevention", "passList"})	
+	passList, err := settings.GetSettings([]string{"threatprevention", "passList"})
 
 	for _, entry := range passList.([]interface{}) {
-		if m, ok := entry.(map[string]interface {}); ok {
+		if m, ok := entry.(map[string]interface{}); ok {
 			logger.Debug("Inserting CIDR into ignore list: %s\n", m["host"].(string))
 			_, pass, _ := net.ParseCIDR(m["host"].(string))
 			ignoreIPBlocks = append(ignoreIPBlocks, pass)
@@ -149,8 +158,8 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	if dstAddr != nil && isIgnoreIP(dstAddr) {
 		logger.Debug("Address is on pass list %s\n", dstAddr)
 		return result
-	} 
-	
+	}
+
 	// Lookup and get a score.
 	webrootResult, err := webroot.IPLookup(dstAddr.String())
 	score := webrootResult[0].Reputation
@@ -163,12 +172,12 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	}
 
 	if score < tpLevel {
-		logger.Debug("blocked %s:%v, score %v\n", dstAddr.String(), mess.MsgTuple.ServerPort, score)		
+		logger.Debug("blocked %s:%v, score %v\n", dstAddr.String(), mess.MsgTuple.ServerPort, score)
 		srvPort := mess.MsgTuple.ServerPort
 		// Only save TP info if this is a http/https blocked connection.
-		if (srvPort == 80 || srvPort == 443) { 
+		if srvPort == 80 || srvPort == 443 {
 			srcPort := int(mess.Session.GetClientSideTuple().ClientPort)
-			srcTpl := mess.MsgTuple.ClientAddress.String()+":"+strconv.Itoa(srcPort)
+			srcTpl := mess.MsgTuple.ClientAddress.String() + ":" + strconv.Itoa(srcPort)
 
 			webrootResult[0].Ctid = ctid
 			logger.Debug("adding %v to rejectInfo map\n", webrootResult[0])
@@ -192,11 +201,11 @@ func isIgnoreIP(ip net.IP) bool {
 	return false
 }
 
-func saveConnInContext(ctx context.Context, c net.Conn) (context.Context) {
+func saveConnInContext(ctx context.Context, c net.Conn) context.Context {
 	return context.WithValue(ctx, connContextKey, c)
 }
 
-func getConn(r *http.Request) (net.Conn) {
+func getConn(r *http.Request) net.Conn {
 	return r.Context().Value(connContextKey).(net.Conn)
 }
 
@@ -205,7 +214,6 @@ func tpRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	ip := conn.RemoteAddr()
 	var entry webroot.LookupResult
 	var ok bool
-
 
 	rejectInfoLock.RLock()
 	entry, ok = rejectInfo[ip.String()].(webroot.LookupResult)
@@ -216,7 +224,7 @@ func tpRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "<HTML><PRE> Your connection to %v was blocked by threat prevetion. Risk level for this site is %v</PRE></HTML>",
-	 entry.IP, webroot.GetRiskLevel(entry.Reputation))
+		entry.IP, webroot.GetRiskLevel(entry.Reputation))
 	ctid := entry.Ctid
 	kernel.NftSetRemove("ip", "nat", "tp_redirect", ctid)
 

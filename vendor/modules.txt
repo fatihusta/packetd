@@ -7,6 +7,9 @@ github.com/GehirnInc/crypt/md5_crypt
 # github.com/c9s/goprocinfo v0.0.0-20190309065803-0b2ad9ac246b
 ## explicit
 github.com/c9s/goprocinfo/linux
+# github.com/fatih/pool v3.0.0+incompatible
+## explicit
+github.com/fatih/pool
 # github.com/gbrlsnchs/jwt/v3 v3.0.0-beta.0
 ## explicit
 github.com/gbrlsnchs/jwt/v3
