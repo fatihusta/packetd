@@ -148,6 +148,7 @@ func Startup() {
 	api.POST("/renewdhcp/:device", renewDhcp)
 	// files
 	engine.Static("/admin", "/www/admin")
+	engine.Static("/ui", "/www/ui")
 	engine.Static("/settings", "/www/settings")
 	engine.Static("/reports", "/www/reports")
 	engine.Static("/setup", "/www/setup")
