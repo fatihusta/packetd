@@ -85,17 +85,19 @@ func PluginShutdown() {
 // Is called when we do a sync setting. Need to update threat level.
 func syncCallbackHandler() {
 	enabled, err := settings.GetSettings([]string{"threatprevention", "enabled"})
-	if err != nil {
+	if err != nil || enabled == nil {
 		logger.Warn("Failed to read setting value for setting threatprevention/enabled, error: %v\n", err.Error())
 		tpEnabled = false
 		return
 	}
-	tpEnabled, err = strconv.ParseBool(enabled.(string))
-	if err != nil {
+	assertEnable, ok := enabled.(bool)
+	if ok != true || err != nil {
 		logger.Warn("Unable to parse threadprevention enabled flag, error: %v\n", err.Error())
 		tpEnabled = false
 		return
 	}
+
+	tpEnabled = assertEnable
 	// Need to load current threatprevention level from settings.
 	sensitivity, err := settings.GetSettings([]string{"threatprevention", "sensitivity"})
 	if err != nil {
