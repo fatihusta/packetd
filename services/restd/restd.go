@@ -17,6 +17,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"path"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -220,7 +221,19 @@ func noRouteHandler(c *gin.Context) {
 	// MFW-704 - return 200 for JS map files requested by Safari on Mac
 	if strings.Contains(c.Request.URL.Path, ".js.map") {
 		c.String(http.StatusOK, "")
+		return
 	}
+
+	// check if the route is for the UI SPA
+	if strings.HasPrefix(c.Request.URL.Path, "/ui/") {
+		// check if it is a tidy URL route and not a file request
+		ext := path.Ext(c.Request.RequestURI)
+		if ext == "" {
+			c.File("/www/ui/index.html")
+			return
+		}
+	}
+
 	// otherwise browser will default to its 404 handler
 }
 
