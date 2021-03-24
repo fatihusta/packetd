@@ -37,6 +37,7 @@ func Startup() {
 	
 	if err != nil {
 		logger.Info("threatprevention not able to create connection pool %v\n", err)
+		return
 	}
 	logger.Info("Pool connections available " + strconv.Itoa(connPool.Len()) + "\n")
 }

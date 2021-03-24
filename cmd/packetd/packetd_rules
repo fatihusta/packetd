@@ -4,6 +4,7 @@ NFT=${NFT:-nft}
 QUEUE_PRIORITY="-145"
 MANGLE_PRIORITY="-145"
 TABLE_NAME="packetd"
+LAN_IP=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | head -1`
 
 remove_packetd_rules()
 {
@@ -50,8 +51,8 @@ insert_packetd_rules()
     # block anything icmp and udp.
     nft add rule nat tp-prerouting ct id @tp_redirect ip protocol {icmp, udp} drop
     # redirect http/https to our info page.
-    nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 443 dnat 192.168.110.5:8486
-    nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 80 dnat 192.168.110.5:8485
+    nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 443 dnat ${LAN_IP}:8486
+    nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 80 dnat ${LAN_IP}:8485
     
     # Set bypass bit on all local-outbound sessions
     ${NFT} add rule inet ${TABLE_NAME} packetd-output ct state new ct mark set ct mark or 0x80000000
