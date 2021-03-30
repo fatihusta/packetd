@@ -191,12 +191,14 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		}
 		// Add ctid into nft set tp_redirect. nft rule will block or redirect. 60 second timeout.
 		kernel.NftSetAdd("ip", "nat", "tp_redirect", ctid, 0)
+
+		// Add stats to reporting. Ordering is important.
 		var tp_stats []interface{}
 		tp_stats = append(tp_stats, time.Now().UnixNano()/1000000)
 		tp_stats = append(tp_stats, dstAddr.String())
 		tp_stats = append(tp_stats, score)
 
-		reports.LogThreatpreventionStatus(tp_stats)
+		reports.LogThreatpreventionStats(tp_stats)
 	}
 	result.SessionRelease = true
 	return result

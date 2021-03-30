@@ -1190,7 +1190,7 @@ func LogSessionStats(values []interface{}) {
 	}
 }
 
-func LogThreatpreventionStatus(values []interface{}) {
+func LogThreatpreventionStats(values []interface{}) {
 	select {
 	case threatpreventionStatsQueue <- values:
 	default:
