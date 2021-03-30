@@ -135,3 +135,30 @@ func GetSessionStatsInsertQuery() string {
 	valStr += ")"
 	return (sqlStr + " VALUES " + valStr)
 }
+
+func GetThreatpreventionStatsColumnList() []string {
+	return []string{
+		"time_stamp",
+		"blocked_address",
+		"threat_level",
+	}
+}
+
+func GetThreatpreventionStatsInsertQuery() string {
+	colList := GetThreatpreventionStatsColumnList()
+	sqlStr := "INSERT INTO threatprevention_stats ("
+	valStr := "("
+
+	for x := 0; x < len(colList); x++ {
+		if x != 0 {
+			sqlStr += ","
+			valStr += ","
+		}
+		sqlStr += colList[x]
+		valStr += "?"
+	}
+
+	sqlStr += ")"
+	valStr += ")"
+	return (sqlStr + " VALUES " + valStr)
+}

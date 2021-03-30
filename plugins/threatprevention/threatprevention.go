@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/untangle/packetd/services/dispatch"
 	"github.com/untangle/packetd/services/kernel"
 	"github.com/untangle/packetd/services/logger"
+	"github.com/untangle/packetd/services/reports"
 	"github.com/untangle/packetd/services/settings"
 	"github.com/untangle/packetd/services/webroot"
 )
@@ -189,6 +191,12 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		}
 		// Add ctid into nft set tp_redirect. nft rule will block or redirect. 60 second timeout.
 		kernel.NftSetAdd("ip", "nat", "tp_redirect", ctid, 0)
+		var tp_stats []interface{}
+		tp_stats = append(tp_stats, time.Now().UnixNano()/1000000)
+		tp_stats = append(tp_stats, dstAddr.String())
+		tp_stats = append(tp_stats, score)
+
+		reports.LogThreatpreventionStatus(tp_stats)
 	}
 	result.SessionRelease = true
 	return result

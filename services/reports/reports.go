@@ -125,6 +125,10 @@ var interfaceStatsStatement *sql.Stmt
 var sessionStatsQueue = make(chan []interface{}, 5000)
 var sessionStatsStatement *sql.Stmt
 
+// queue and prepared statement for writing to the threatprevention_stats database table
+var threatpreventionStatsQueue = make(chan []interface{}, 1000)
+var threatpreventionStatStatement *sql.Stmt
+
 var eventQueue = make(chan Event, 10000)
 var cloudQueue = make(chan Event, 1000)
 var preparedStatements = map[string]*sql.Stmt{}
@@ -201,6 +205,11 @@ func Startup() {
 	sessionStatsStatement, err = dbMain.Prepare(GetSessionStatsInsertQuery())
 	if err != nil {
 		logger.Err("Failed to prepare session_stats database statement: %s\n", err.Error())
+	}
+
+	threatpreventionStatStatement, err = dbMain.Prepare(GetThreatpreventionStatsInsertQuery())
+	if err != nil {
+		logger.Err("Failed to prepare threatprevention_stats database statement: %s\n", err.Error())
 	}
 
 	go eventLogger(eventBatchSize)
@@ -849,6 +858,15 @@ func createTables() {
 		logger.Err("Failed to create table: %s\n", err.Error())
 	}
 
+	_, err = dbMain.Exec(`CREATE TABLE IF NOT EXISTS threatprevention_stats (
+			time_stamp bigint NOT NULL,
+			blocked_address text,
+			threat_level int)`)
+
+	if err != nil {
+		logger.Err("Failed to create table: %s\n", err.Error())
+	}
+
 	_, err = dbMain.Exec(`CREATE INDEX IF NOT EXISTS idx_iface_stats_time_stamp ON interface_stats (time_stamp DESC)`)
 	if err != nil {
 		logger.Err("Failed to create index: %s\n", err.Error())
@@ -1013,6 +1031,7 @@ func dbCleaner() {
 		trimPercent("sessions", .10, tx)
 		trimPercent("session_stats", .10, tx)
 		trimPercent("interface_stats", .10, tx)
+		trimPercent("threatprevention_stats", .10, tx)
 
 		logger.Info("Committing database trim...\n")
 
@@ -1171,6 +1190,14 @@ func LogSessionStats(values []interface{}) {
 	}
 }
 
+func LogThreatpreventionStatus(values []interface{}) {
+	select {
+	case threatpreventionStatsQueue <- values:
+	default:
+		logger.Warn("%OC|threatpreventionStatsQueue at capacity[%d]. Dropping event\n", "reports_session_stats_overrun", 100, cap(threatpreventionStatsQueue))
+	}
+}
+
 func statsLogger() {
 	for {
 		select {
@@ -1185,6 +1212,10 @@ func statsLogger() {
 				logger.Trace("SESSION_STATS: %v\n", sessionStats)
 			}
 			sessionStatsStatement.Exec(sessionStats...)
+		case threatpreventionStats := <-threatpreventionStatsQueue:
+			if logger.IsTraceEnabled() {
+				logger.Trace("SESSION_STATS: %v\n", threatpreventionStats)
+			}
 		}
 	}
 }
