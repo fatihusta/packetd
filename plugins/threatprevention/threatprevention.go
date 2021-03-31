@@ -41,7 +41,7 @@ var redirectReplyTemplate = `<html>
 	<h2>Blocked IP Address.</h2>
 	<p>This IP address is blocked because it violates network policy.</p>
 	<p>IP: %host</p>
-	<p>Reason: %reason</p>
+	<p>Trust level of IP: %reason</p>
 	<p>Please contact you network administrator</p>
   </div>
 </body>`
