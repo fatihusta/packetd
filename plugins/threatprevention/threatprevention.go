@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/untangle/packetd/services/dispatch"
@@ -30,6 +31,20 @@ type contextKey struct {
 }
 
 var connContextKey = &contextKey{"http-conn"}
+
+var redirectReplyTemplate = `<html>
+<head>
+  <title>403 Forbidden</title>
+</head>
+<body>
+  <div style="width: 500px; margin: 100px auto;">
+	<h2>Blocked IP Address.</h2>
+	<p>This IP address is blocked because it violates network policy.</p>
+	<p>IP: %host</p>
+	<p>Reason: %reason</p>
+	<p>Please contact you network administrator</p>
+  </div>
+</body>`
 
 // PluginStartup function is called to allow plugin specific initialization. We
 // increment the argumented WaitGroup so the main process can wait for
@@ -225,8 +240,15 @@ func tpRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "<HTML><PRE> Your connection to %v was blocked by threat prevetion. Risk level for this site is %v</PRE></HTML>",
-		entry.IP, webroot.GetRiskLevel(entry.Reputation))
+	var sb strings.Builder
+	if _, err := sb.WriteString(redirectReplyTemplate); err != nil {
+		logger.Err("Not able to make copy of redirectReplyTemplate. %")
+	} else {
+		reply := sb.String()
+		strings.Replace(reply, "%host", entry.IP, 1)
+		strings.Replace(reply, "%%reason", webroot.GetRiskLevel(entry.Reputation), 1)
+		fmt.Fprintf(w, reply)
+	}
 	ctid := entry.Ctid
 	kernel.NftSetRemove("ip", "nat", "tp_redirect", ctid)
 
