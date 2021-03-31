@@ -40,9 +40,9 @@ var redirectReplyTemplate = `<html>
   <div style="width: 500px; margin: 100px auto;">
 	<h2>Blocked IP Address.</h2>
 	<p>This IP address is blocked because it violates network policy.</p>
-	<p>IP: %host</p>
-	<p>Trust level of IP: %reason</p>
-	<p>Please contact you network administrator</p>
+	<p>IP: %ip</p>
+	<p>Trust level of IP:  %reason</p>
+	<p>Please contact your network administrator</p>
   </div>
 </body>`
 
@@ -240,15 +240,10 @@ func tpRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var sb strings.Builder
-	if _, err := sb.WriteString(redirectReplyTemplate); err != nil {
-		logger.Err("Not able to make copy of redirectReplyTemplate. %")
-	} else {
-		reply := sb.String()
-		strings.Replace(reply, "%host", entry.IP, 1)
-		strings.Replace(reply, "%%reason", webroot.GetRiskLevel(entry.Reputation), 1)
-		fmt.Fprintf(w, reply)
-	}
+	tmp := strings.Replace(redirectReplyTemplate, "%ip", entry.IP, 1)
+	reply := strings.Replace(tmp, "%reason", webroot.GetRiskLevel(entry.Reputation), 1)
+	fmt.Fprintf(w, reply)
+
 	ctid := entry.Ctid
 	kernel.NftSetRemove("ip", "nat", "tp_redirect", ctid)
 
