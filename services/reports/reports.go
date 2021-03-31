@@ -1216,6 +1216,7 @@ func statsLogger() {
 			if logger.IsTraceEnabled() {
 				logger.Trace("SESSION_STATS: %v\n", threatpreventionStats)
 			}
+			threatpreventionStatStatement.Exec(threatpreventionStats...)
 		}
 	}
 }
