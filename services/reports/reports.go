@@ -1214,7 +1214,7 @@ func statsLogger() {
 			sessionStatsStatement.Exec(sessionStats...)
 		case threatpreventionStats := <-threatpreventionStatsQueue:
 			if logger.IsTraceEnabled() {
-				logger.Trace("SESSION_STATS: %v\n", threatpreventionStats)
+				logger.Trace("THREATPREVENTION_STATS: %v\n", threatpreventionStats)
 			}
 			threatpreventionStatStatement.Exec(threatpreventionStats...)
 		}

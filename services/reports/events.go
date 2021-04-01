@@ -136,6 +136,7 @@ func GetSessionStatsInsertQuery() string {
 	return (sqlStr + " VALUES " + valStr)
 }
 
+// GetThreatpreventionStatsColumnList returns the list of columns in the threatprevention_stats table
 func GetThreatpreventionStatsColumnList() []string {
 	return []string{
 		"time_stamp",
@@ -144,6 +145,7 @@ func GetThreatpreventionStatsColumnList() []string {
 	}
 }
 
+// GetThreatpreventionStatsInsertQuery generates the SQL for creating the prepared INSERT statement for the threatprevention_stats table
 func GetThreatpreventionStatsInsertQuery() string {
 	colList := GetThreatpreventionStatsColumnList()
 	sqlStr := "INSERT INTO threatprevention_stats ("
