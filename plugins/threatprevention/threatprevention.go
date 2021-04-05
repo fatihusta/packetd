@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +33,20 @@ type contextKey struct {
 }
 
 var connContextKey = &contextKey{"http-conn"}
+
+var redirectReplyTemplate = `<html>
+<head>
+  <title>403 Forbidden</title>
+</head>
+<body>
+  <div style="width: 500px; margin: 100px auto;">
+	<h2>Blocked IP Address.</h2>
+	<p>This IP address is blocked because it violates network policy.</p>
+	<p>IP: %ip</p>
+	<p>Trust level of IP:  %reason</p>
+	<p>Please contact your network administrator</p>
+  </div>
+</body>`
 
 // PluginStartup function is called to allow plugin specific initialization. We
 // increment the argumented WaitGroup so the main process can wait for
@@ -235,8 +250,10 @@ func tpRedirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "<HTML><PRE> Your connection to %v was blocked by threat prevetion. Risk level for this site is %v</PRE></HTML>",
-		entry.IP, webroot.GetRiskLevel(entry.Reputation))
+	tmp := strings.Replace(redirectReplyTemplate, "%ip", entry.IP, 1)
+	reply := strings.Replace(tmp, "%reason", webroot.GetRiskLevel(entry.Reputation), 1)
+	fmt.Fprintf(w, reply)
+
 	ctid := entry.Ctid
 	kernel.NftSetRemove("ip", "nat", "tp_redirect", ctid)
 
