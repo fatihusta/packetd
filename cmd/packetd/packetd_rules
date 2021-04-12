@@ -5,6 +5,7 @@ QUEUE_PRIORITY="-145"
 MANGLE_PRIORITY="-145"
 TABLE_NAME="packetd"
 LAN_IP=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | head -1`
+TP_REDIRECT=`jsonfilter -i /etc/config/settings.json -e '@.threatprevention.redirect'`
 
 remove_packetd_rules()
 {
@@ -50,10 +51,15 @@ insert_packetd_rules()
     nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 444-65535 drop
     # block anything icmp and udp.
     nft add rule nat tp-prerouting ct id @tp_redirect ip protocol {icmp, udp} drop
-    # redirect http/https to our info page.
-    nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 443 dnat ${LAN_IP}:8486
-    nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 80 dnat ${LAN_IP}:8485
     
+    # redirect http/https to our info page.
+    if [ "${TP_REDIRECT}" = "true" ]
+    then
+        nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 443 dnat ${LAN_IP}:8486
+        nft add rule nat tp-prerouting ct id @tp_redirect tcp dport 80 dnat ${LAN_IP}:8485
+    fi
+    ${NFT} add rule nat tp-prerouting ct id @tp_redirect drop
+
     # Set bypass bit on all local-outbound sessions
     ${NFT} add rule inet ${TABLE_NAME} packetd-output ct state new ct mark set ct mark or 0x80000000
     ${NFT} add rule inet ${TABLE_NAME} packetd-output goto packetd-queue
