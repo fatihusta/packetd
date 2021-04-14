@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
+	"time"
+
 	"github.com/fatih/pool"
 	"github.com/untangle/packetd/services/logger"
 )
@@ -13,14 +16,24 @@ import (
 // LookupResult result struct for bctid lookup.
 // ctid is added to allow lookup from http/https redirect server.
 type LookupResult struct {
-	IP string `json:"ip"`
-	Ipint int `json:"ipint"`
-	Reputation int `json:"reputation"`
-	Status int `json:"status"`
-	ThreatMask int `json:"threat_mask"`
-	Source string `json:"source"`
-	Ctid uint32
+	IP         string `json:"ip"`
+	Ipint      int    `json:"ipint"`
+	Reputation int    `json:"reputation"`
+	Status     int    `json:"status"`
+	ThreatMask int    `json:"threat_mask"`
+	Source     string `json:"source"`
+	Ctid       uint32
 }
+
+type repuHostCacheEntry struct {
+	value string
+	age   time.Time
+}
+
+var CACHE_EXPIRE = 7 // Expiry in days
+
+var repuHostCache map[string]repuHostCacheEntry
+var repuHostCacheLock = sync.RWMutex{}
 
 const connMaxPoolSize int = 25
 
@@ -34,11 +47,16 @@ func Startup() {
 	logger.Info("Starting up the threatprevention service\n")
 	// Create a socket pool to handle request to the bcdtid daemon
 	connPool, err = pool.NewChannelPool(5, connMaxPoolSize, webrootConn)
-	
+
 	if err != nil {
 		logger.Info("threatprevention not able to create connection pool %v\n", err)
 		return
 	}
+
+	repuHostCache = make(map[string]repuHostCacheEntry)
+	repuHostCacheLock = sync.RWMutex{}
+	go runCleanCache()
+
 	logger.Info("Pool connections available " + strconv.Itoa(connPool.Len()) + "\n")
 }
 
@@ -61,7 +79,7 @@ func apiQuery(cmd string, retry bool) (string, error) {
 	return result, err
 }
 
-// GetInfo looks up info form bctid.
+// GetInfo looks up info from bctid.
 // host can be IP or FQDN.
 func GetInfo(host string) (string, error) {
 	addr := net.ParseIP(host)
@@ -79,23 +97,89 @@ func queryIP(ips string) (string, error) {
 
 // hosts can be single or , seperated list of FQDNs
 func queryURL(hosts string) (string, error) {
+	var entry repuHostCacheEntry
+	var ok bool
+	logger.Info("queryURL, lookup %v\n", hosts)
+	repuHostCacheLock.RLock()
+	entry, ok = repuHostCache[hosts]
+	repuHostCacheLock.RUnlock()
+	if ok {
+		logger.Debug("queryURL, entry found cache %v\n", entry.value)
+		return entry.value, nil
+	}
+
 	cmd := "{\"url/getinfo\" : {\"urls\": [\"" + hosts + "\"]}}"
-	return apiQuery(cmd, false)
+	result, err := apiQuery(cmd, false)
+	logger.Debug("queryURL, result %v, %v\n", result, err)
+
+	if err == nil {
+		repuHostCacheLock.Lock()
+		repuHostCache[hosts] = repuHostCacheEntry{value: result, age: time.Now()}
+		repuHostCacheLock.Unlock()
+		logger.Debug("queryURL, adding to cache %v\n", result)
+		return result, nil
+	}
+	logger.Debug("queryURL, failure in lookup %v\n", err)
+	return "", err
+
 }
 
 // IPLookup lookup IP address from bctid daemon.
 func IPLookup(ip string) ([]LookupResult, error) {
+	var entry repuHostCacheEntry
+	var ok bool
+	var result []LookupResult
+	logger.Debug("IPLookup, ip %v\n", ip)
+	repuHostCacheLock.RLock()
+	entry, ok = repuHostCache[ip]
+	repuHostCacheLock.RUnlock()
+
+	if ok {
+		json.Unmarshal([]byte(entry.value), &result)
+		logger.Debug("IPLookup, found cache entry %v\n", result)
+		return result, nil
+	}
+
 	var res, err = queryIP(ip)
+	logger.Debug("IPLookup, result %v\n", res)
 	if err != nil {
 		return []LookupResult{}, err
 	}
-	var result []LookupResult
+	repuHostCacheLock.Lock()
+	repuHostCache[ip] = repuHostCacheEntry{value: res, age: time.Now()}
+	repuHostCacheLock.Unlock()
+
 	json.Unmarshal([]byte(res), &result)
 	return result, nil
 }
 
+func cleanCache() {
+	expiry := time.Now().AddDate(0, 0, -(CACHE_EXPIRE))
+	// Host Cache
+	repuHostCacheLock.Lock()
+	for key, value := range repuHostCache {
+		if value.age.Before(expiry) {
+			delete(repuHostCache, key)
+		}
+	}
+	repuHostCacheLock.Unlock()
+}
+
+func runCleanCache() {
+	cleanerTicker := time.NewTicker(1 * time.Hour)
+
+	for {
+		select {
+		case <-cleanerTicker.C:
+			logger.Debug("Begin cache clean run\n")
+			cleanCache()
+			logger.Debug("End cache clean run\n")
+		}
+	}
+}
+
 // GetRiskLevel returns risk level <string> based on bctid score.
-func GetRiskLevel(risk int ) string {
+func GetRiskLevel(risk int) string {
 	var result string
 	result = "Trustworthy"
 	if risk < 80 {

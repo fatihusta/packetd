@@ -214,7 +214,6 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 			srcTpl := mess.MsgTuple.ClientAddress.String() + ":" + strconv.Itoa(srcPort)
 
 			webrootResult[0].Ctid = ctid
-			logger.Debug("adding %v to rejectInfo map\n", webrootResult[0])
 			rejectInfoLock.Lock()
 			rejectInfo[srcTpl] = webrootResult[0]
 			rejectInfoLock.Unlock()
