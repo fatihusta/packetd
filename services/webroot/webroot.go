@@ -68,7 +68,7 @@ func Shutdown() {
 
 func apiQuery(cmd string, retry bool) (string, error) {
 	var err error = nil
-	s, err := connPool.Get()
+	s, _ := connPool.Get()
 	fmt.Fprintf(s, "%s\r\n", cmd)
 	result, err := bufio.NewReader(s).ReadString('\n')
 	if err != nil {
@@ -82,10 +82,6 @@ func apiQuery(cmd string, retry bool) (string, error) {
 // GetInfo looks up info from bctid.
 // host can be IP or FQDN.
 func GetInfo(host string) (string, error) {
-	addr := net.ParseIP(host)
-	if addr != nil {
-		return queryIP(host)
-	}
 	return queryURL(host)
 }
 
@@ -124,24 +120,31 @@ func queryURL(hosts string) (string, error) {
 
 }
 
-// IPLookup lookup IP address from bctid daemon.
-func IPLookup(ip string) ([]LookupResult, error) {
+// Lookup lookup IP address from bctid daemon.
+func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 	var entry repuHostCacheEntry
 	var ok bool
 	var result []LookupResult
-	logger.Debug("IPLookup, ip %v\n", ip)
+	logger.Debug("Lookup, ip %v\n", ip)
 	repuHostCacheLock.RLock()
 	entry, ok = repuHostCache[ip]
 	repuHostCacheLock.RUnlock()
 
 	if ok {
 		json.Unmarshal([]byte(entry.value), &result)
-		logger.Debug("IPLookup, found cache entry %v\n", result)
+		logger.Debug("Lookup, found cache entry %v\n", result)
 		return result, nil
 	}
 
-	var res, err = queryIP(ip)
-	logger.Debug("IPLookup, result %v\n", res)
+	var res string
+	var err error
+	if ipDB {
+		res, err = queryIP(ip)
+	} else {
+		res, err = queryURL(ip)
+	}
+
+	logger.Debug("Lookup, result %v\n", res)
 	if err != nil {
 		return []LookupResult{}, err
 	}
