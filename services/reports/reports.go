@@ -861,6 +861,7 @@ func createTables() {
 	_, err = dbMain.Exec(`CREATE TABLE IF NOT EXISTS threatprevention_stats (
 			time_stamp bigint NOT NULL,
 			blocked_address text,
+			client_address text,
 			threat_level int)`)
 
 	if err != nil {
