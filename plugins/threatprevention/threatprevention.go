@@ -164,13 +164,16 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	}
 
 	var dstAddr net.IP
+	var srcAddr net.IP
 
 	if mess.IP6Layer != nil {
 		dstAddr = mess.IP6Layer.DstIP
+		srcAddr = mess.IP6Layer.SrcIP
 	}
 
 	if mess.IP4Layer != nil {
 		dstAddr = mess.IP4Layer.DstIP
+		srcAddr = mess.IP4Layer.SrcIP
 	}
 
 	// Release if the request is for private/passlist.
@@ -211,6 +214,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		var tp_stats []interface{}
 		tp_stats = append(tp_stats, time.Now().UnixNano()/1000000)
 		tp_stats = append(tp_stats, dstAddr.String())
+		tp_stats = append(tp_stats, srcAddr.String())
 		tp_stats = append(tp_stats, score)
 
 		reports.LogThreatpreventionStats(tp_stats)
