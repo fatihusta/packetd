@@ -23,6 +23,7 @@ const pluginName = "threatprevention"
 
 var tpLevel int
 var tpEnabled bool = false
+var tpRedirect bool = false
 
 var ignoreIPBlocks []*net.IPNet
 var rejectInfo map[string]interface{}
@@ -114,7 +115,21 @@ func syncCallbackHandler() {
 		return
 	}
 
+	redirect, err := settings.GetSettings([]string{"threatprevention", "redirect"})
+	if err != nil || enabled == nil {
+		logger.Warn("Failed to read setting value for setting threatprevention/redirect, error: %v\n", err.Error())
+		tpRedirect = false
+		return
+	}
+	assertRedirect, ok := redirect.(bool)
+	if ok != true || err != nil {
+		logger.Warn("Unable to parse threadprevention redirect flag, error: %v\n", err.Error())
+		tpRedirect = false
+		return
+	}
+
 	tpEnabled = assertEnable
+	tpRedirect = assertRedirect
 	// Need to load current threatprevention level from settings.
 	sensitivity, err := settings.GetSettings([]string{"threatprevention", "sensitivity"})
 	if err != nil {
@@ -194,7 +209,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		logger.Debug("blocked %s:%v, score %v\n", dstAddr.String(), mess.MsgTuple.ServerPort, score)
 		srvPort := mess.MsgTuple.ServerPort
 		// Only save TP info if this is a http/https blocked connection.
-		if srvPort == 80 || srvPort == 443 {
+		if tpRedirect && (srvPort == 80 || srvPort == 443) {
 			srcPort := int(mess.Session.GetClientSideTuple().ClientPort)
 			srcTpl := mess.MsgTuple.ClientAddress.String() + ":" + strconv.Itoa(srcPort)
 
