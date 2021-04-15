@@ -30,7 +30,7 @@ type repuHostCacheEntry struct {
 	age   time.Time
 }
 
-var CACHE_EXPIRE = 7 // Expiry in days
+var CACHE_EXPIRE = 1 // Expiry in days
 
 var repuHostCache map[string]repuHostCacheEntry
 var repuHostCacheLock = sync.RWMutex{}
@@ -157,11 +157,13 @@ func cleanCache() {
 	expiry := time.Now().AddDate(0, 0, -(CACHE_EXPIRE))
 	// Host Cache
 	repuHostCacheLock.Lock()
+	logger.Debug("Begin cache clean run, row count %i\n", len(repuHostCache))
 	for key, value := range repuHostCache {
 		if value.age.Before(expiry) {
 			delete(repuHostCache, key)
 		}
 	}
+	logger.Debug("End cache clean run, rown count %i\n", len(repuHostCache))
 	repuHostCacheLock.Unlock()
 }
 
@@ -171,9 +173,7 @@ func runCleanCache() {
 	for {
 		select {
 		case <-cleanerTicker.C:
-			logger.Debug("Begin cache clean run\n")
 			cleanCache()
-			logger.Debug("End cache clean run\n")
 		}
 	}
 }
