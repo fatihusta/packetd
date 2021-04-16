@@ -25,15 +25,21 @@ type LookupResult struct {
 	Ctid       uint32
 }
 
-type repuHostCacheEntry struct {
+type repuCacheEntry struct {
 	value string
 	age   time.Time
 }
 
+type repuCache struct {
+	data map[string]repuCacheEntry
+	lock sync.RWMutex
+	name string
+}
+
 var CACHE_EXPIRE = 1 // Expiry in days
 
-var repuHostCache map[string]repuHostCacheEntry
-var repuHostCacheLock = sync.RWMutex{}
+var repuURLCache repuCache
+var repuIPCache repuCache
 
 const connMaxPoolSize int = 25
 
@@ -53,8 +59,12 @@ func Startup() {
 		return
 	}
 
-	repuHostCache = make(map[string]repuHostCacheEntry)
-	repuHostCacheLock = sync.RWMutex{}
+	repuURLCache.data = make(map[string]repuCacheEntry)
+	repuURLCache.lock = sync.RWMutex{}
+	repuURLCache.name = "URL"
+	repuIPCache.data = make(map[string]repuCacheEntry)
+	repuIPCache.lock = sync.RWMutex{}
+	repuURLCache.name = "IP"
 	go runCleanCache()
 
 	logger.Info("Pool connections available " + strconv.Itoa(connPool.Len()) + "\n")
@@ -87,60 +97,69 @@ func GetInfo(host string) (string, error) {
 
 // ips can be single or , seperated list of IPs
 func queryIP(ips string) (string, error) {
+	var entry repuCacheEntry
+	var ok bool
+	logger.Debug("queryIP, lookup %v\n", ips)
+	repuIPCache.lock.RLock()
+	entry, ok = repuIPCache.data[ips]
+	repuURLCache.lock.RUnlock()
+	if ok {
+		logger.Debug("queryIP, entry found cache %v\n", entry.value)
+		return entry.value, nil
+	}
+
 	cmd := "{\"ip/getinfo\" : {\"ips\": [\"" + ips + "\"]}}"
 	return apiQuery(cmd, false)
 }
 
 // hosts can be single or , seperated list of FQDNs
 func queryURL(hosts string) (string, error) {
-	var entry repuHostCacheEntry
+	var entry repuCacheEntry
 	var ok bool
-	logger.Info("queryURL, lookup %v\n", hosts)
-	repuHostCacheLock.RLock()
-	entry, ok = repuHostCache[hosts]
-	repuHostCacheLock.RUnlock()
+	logger.Debug("queryURL, lookup %v\n", hosts)
+	repuURLCache.lock.RLock()
+	entry, ok = repuURLCache.data[hosts]
+	repuURLCache.lock.RUnlock()
 	if ok {
 		logger.Debug("queryURL, entry found cache %v\n", entry.value)
 		return entry.value, nil
 	}
 
 	cmd := "{\"url/getinfo\" : {\"urls\": [\"" + hosts + "\"]}}"
-	result, err := apiQuery(cmd, false)
-	logger.Debug("queryURL, result %v, %v\n", result, err)
-
-	if err == nil {
-		repuHostCacheLock.Lock()
-		repuHostCache[hosts] = repuHostCacheEntry{value: result, age: time.Now()}
-		repuHostCacheLock.Unlock()
-		logger.Debug("queryURL, adding to cache %v\n", result)
-		return result, nil
-	}
-	logger.Debug("queryURL, failure in lookup %v\n", err)
-	return "", err
-
+	return apiQuery(cmd, false)
 }
 
 // Lookup lookup IP address from bctid daemon.
 func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
-	var entry repuHostCacheEntry
+	var entry repuCacheEntry
 	var ok bool
 	var result []LookupResult
 	logger.Debug("Lookup, ip %v\n", ip)
-	repuHostCacheLock.RLock()
-	entry, ok = repuHostCache[ip]
-	repuHostCacheLock.RUnlock()
-
-	if ok {
-		json.Unmarshal([]byte(entry.value), &result)
-		logger.Debug("Lookup, found cache entry %v\n", result)
-		return result, nil
-	}
 
 	var res string
 	var err error
-	if ipDB {
-		res, err = queryIP(ip)
-	} else {
+	if ipDB { // IP DB
+		repuIPCache.lock.RLock()
+		entry, ok = repuIPCache.data[ip]
+		repuIPCache.lock.RUnlock()
+
+		if ok { // Found in cache
+			json.Unmarshal([]byte(entry.value), &result)
+			logger.Debug("Lookup, found cache entry %v\n", result)
+			return result, nil
+		} else {
+			res, err = queryIP(ip)
+		}
+	} else { // URL DB
+		repuURLCache.lock.RLock()
+		entry, ok = repuURLCache.data[ip]
+		repuURLCache.lock.RUnlock()
+
+		if ok { // Found in cache
+			json.Unmarshal([]byte(entry.value), &result)
+			logger.Debug("Lookup, found cache entry %v\n", result)
+			return result, nil
+		}
 		res, err = queryURL(ip)
 	}
 
@@ -148,26 +167,27 @@ func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 	if err != nil {
 		return []LookupResult{}, err
 	}
-	repuHostCacheLock.Lock()
-	repuHostCache[ip] = repuHostCacheEntry{value: res, age: time.Now()}
-	repuHostCacheLock.Unlock()
+	if ipDB {
+		updateCache(&repuIPCache, ip, res)
+	} else {
+		updateCache(&repuURLCache, ip, res)
+	}
 
 	json.Unmarshal([]byte(res), &result)
 	return result, nil
 }
 
-func cleanCache() {
+func cleanCache(cache *repuCache) {
 	expiry := time.Now().AddDate(0, 0, -(CACHE_EXPIRE))
-	// Host Cache
-	repuHostCacheLock.Lock()
-	logger.Debug("Begin cache clean run, row count %i\n", len(repuHostCache))
-	for key, value := range repuHostCache {
+	repuURLCache.lock.Lock()
+	logger.Debug("Begin cache %s clean run, row count %i\n", cache.name, len(repuURLCache.data))
+	for key, value := range cache.data {
 		if value.age.Before(expiry) {
-			delete(repuHostCache, key)
+			delete(cache.data, key)
 		}
 	}
-	logger.Debug("End cache clean run, rown count %i\n", len(repuHostCache))
-	repuHostCacheLock.Unlock()
+	logger.Debug("End cache %s clean run, rown count %i\n", cache.name, len(repuURLCache.data))
+	repuURLCache.lock.Unlock()
 }
 
 func runCleanCache() {
@@ -176,9 +196,16 @@ func runCleanCache() {
 	for {
 		select {
 		case <-cleanerTicker.C:
-			cleanCache()
+			cleanCache(&repuURLCache)
+			cleanCache(&repuIPCache)
 		}
 	}
+}
+
+func updateCache(cache *repuCache, entry string, data string) {
+	cache.lock.Lock()
+	cache.data[entry] = repuCacheEntry{value: data, age: time.Now()}
+	cache.lock.Unlock()
 }
 
 // GetRiskLevel returns risk level <string> based on bctid score.
