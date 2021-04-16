@@ -21,6 +21,7 @@ import (
 
 const pluginName = "threatprevention"
 
+var DEFAULT_LEVEL = 60
 var tpLevel int
 var tpEnabled bool = false
 var tpRedirect bool = false
@@ -104,28 +105,41 @@ func PluginShutdown() {
 func syncCallbackHandler() {
 	enabled, err := settings.GetSettings([]string{"threatprevention", "enabled"})
 	if err != nil || enabled == nil {
-		logger.Warn("Failed to read setting value for setting threatprevention/enabled, error: %v\n", err.Error())
+		if err != nil {
+			logger.Warn("Failed to read setting value for setting threatprevention/enable, error: %v\n", err.Error())
+		} else {
+			logger.Warn("Failed to read setting value for setting threatprevention/enable. Default to false")
+		}
 		tpEnabled = false
-		return
 	}
 	assertEnable, ok := enabled.(bool)
 	if ok != true || err != nil {
-		logger.Warn("Unable to parse threadprevention enabled flag, error: %v\n", err.Error())
+		if err != nil {
+			logger.Warn("Failed to read setting value for setting threatprevention/enable, error: %v\n", err.Error())
+		} else {
+			logger.Warn("Failed to read setting value for setting threatprevention/enable. Default to false")
+		}
 		tpEnabled = false
-		return
 	}
 
 	redirect, err := settings.GetSettings([]string{"threatprevention", "redirect"})
-	if err != nil || enabled == nil {
-		logger.Warn("Failed to read setting value for setting threatprevention/redirect, error: %v\n", err.Error())
+	if err != nil || redirect == nil {
+		if err != nil {
+			logger.Warn("Failed to read setting value for setting threatprevention/redirect, error: %v\n", err.Error())
+		} else {
+			logger.Warn("Failed to read setting value for setting threatprevention/redirect. Default to false")
+		}
 		tpRedirect = false
-		return
 	}
+
 	assertRedirect, ok := redirect.(bool)
 	if ok != true || err != nil {
-		logger.Warn("Unable to parse threadprevention redirect flag, error: %v\n", err.Error())
+		if err != nil {
+			logger.Warn("Failed to read setting value for setting threatprevention/redirect, error: %v\n", err.Error())
+		} else {
+			logger.Warn("Failed to read setting value for setting threatprevention/redirect. Default to false")
+		}
 		tpRedirect = false
-		return
 	}
 
 	tpEnabled = assertEnable
@@ -134,14 +148,14 @@ func syncCallbackHandler() {
 	sensitivity, err := settings.GetSettings([]string{"threatprevention", "sensitivity"})
 	if err != nil {
 		logger.Warn("Failed to read setting value for setting threatprevention/sensitivity, error: %v\n", err.Error())
-		logger.Warn("Failed to get threatprevention level. Default to level 80\n")
-		tpLevel = 80
+		logger.Warn("Failed to get threatprevention level. Default to level %v\n", DEFAULT_LEVEL)
+		tpLevel = DEFAULT_LEVEL
 	} else {
 		tpLevel, err = strconv.Atoi(sensitivity.(string))
 		if err != nil {
 			logger.Warn("Failed to read setting value for setting threatprevention/sensitivity, error: %v\n", err.Error())
-			logger.Warn("Failed to get threatprevention level. Default to level 80\n")
-			tpLevel = 80
+			logger.Warn("Failed to get threatprevention level. Default to level %v\n", DEFAULT_LEVEL)
+			tpLevel = DEFAULT_LEVEL
 		}
 	}
 	logger.Debug("Threat prevention level set to %v\n", tpLevel)
