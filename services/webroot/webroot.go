@@ -132,6 +132,9 @@ func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 			return result, nil
 		} else {
 			res, err = queryIP(ip)
+			if err != nil {
+				updateCache(&repuIPCache, ip, res)
+			}
 		}
 	} else { // URL DB
 		repuURLCache.lock.RLock()
@@ -144,16 +147,14 @@ func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 			return result, nil
 		}
 		res, err = queryURL(ip)
+		if err != nil {
+			updateCache(&repuURLCache, ip, res)
+		}
 	}
 
 	logger.Debug("Lookup, result %v\n", res)
 	if err != nil {
 		return []LookupResult{}, err
-	}
-	if ipDB {
-		updateCache(&repuIPCache, ip, res)
-	} else {
-		updateCache(&repuURLCache, ip, res)
 	}
 
 	json.Unmarshal([]byte(res), &result)
