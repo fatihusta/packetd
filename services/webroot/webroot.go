@@ -92,39 +92,22 @@ func apiQuery(cmd string, retry bool) (string, error) {
 // GetInfo looks up info from bctid.
 // host can be IP or FQDN.
 func GetInfo(host string) (string, error) {
-	return queryURL(host)
+	lookupRes, err := Lookup(host, false)
+	if err != nil {
+		return "", err
+	}
+	res, err := json.Marshal(lookupRes)
+	return string(res), err
 }
 
 // ips can be single or , seperated list of IPs
 func queryIP(ips string) (string, error) {
-	var entry repuCacheEntry
-	var ok bool
-	logger.Debug("queryIP, lookup %v\n", ips)
-	repuIPCache.lock.RLock()
-	entry, ok = repuIPCache.data[ips]
-	repuURLCache.lock.RUnlock()
-	if ok {
-		logger.Debug("queryIP, entry found cache %v\n", entry.value)
-		return entry.value, nil
-	}
-
 	cmd := "{\"ip/getinfo\" : {\"ips\": [\"" + ips + "\"]}}"
 	return apiQuery(cmd, false)
 }
 
 // hosts can be single or , seperated list of FQDNs
 func queryURL(hosts string) (string, error) {
-	var entry repuCacheEntry
-	var ok bool
-	logger.Debug("queryURL, lookup %v\n", hosts)
-	repuURLCache.lock.RLock()
-	entry, ok = repuURLCache.data[hosts]
-	repuURLCache.lock.RUnlock()
-	if ok {
-		logger.Debug("queryURL, entry found cache %v\n", entry.value)
-		return entry.value, nil
-	}
-
 	cmd := "{\"url/getinfo\" : {\"urls\": [\"" + hosts + "\"]}}"
 	return apiQuery(cmd, false)
 }
