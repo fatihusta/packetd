@@ -26,6 +26,7 @@ var tpEnabled bool = false
 var tpRedirect bool = false
 
 var ignoreIPBlocks []*net.IPNet
+var localNetworks []*net.IPNet
 var rejectInfo map[string]interface{}
 var rejectInfoLock sync.RWMutex
 
@@ -156,6 +157,22 @@ func syncCallbackHandler() {
 			ignoreIPBlocks = append(ignoreIPBlocks, pass)
 		}
 	}
+
+	// Get Local LAN networks.
+	networks, err := settings.GetSettings([]string{"network", "interfaces"})
+
+	for _, intface := range networks.([]interface{}) {
+		if m, ok := intface.(map[string]interface{}); ok {
+			if m["wan"].(bool) {
+				continue
+			}
+			prefix := strconv.FormatFloat(m["v4StaticPrefix"].(float64), 'f', -1, 64)
+			localNetwork := fmt.Sprintf("%s/%s", m["v4StaticAddress"].(string), prefix)
+			logger.Debug("Found local network %s\n", localNetwork)
+			_, l, _ := net.ParseCIDR((localNetwork))
+			localNetworks = append(localNetworks, l)
+		}
+	}
 }
 
 // TpNfqueueHandler receives a NfqueueMessage which includes a Tuple and
@@ -165,6 +182,7 @@ func syncCallbackHandler() {
 // the packet mark.
 func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool) dispatch.NfqueueResult {
 	var result dispatch.NfqueueResult
+	var webrootResult []webroot.LookupResult
 	result.SessionRelease = true
 
 	if !tpEnabled {
@@ -179,23 +197,32 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	}
 
 	var dstAddr net.IP
+	var srcAddr net.IP
 
 	if mess.IP6Layer != nil {
 		dstAddr = mess.IP6Layer.DstIP
+		srcAddr = mess.IP6Layer.SrcIP
 	}
 
 	if mess.IP4Layer != nil {
 		dstAddr = mess.IP4Layer.DstIP
+		srcAddr = mess.IP4Layer.SrcIP
 	}
 
 	// Release if the request is for private/passlist.
-	if dstAddr != nil && isIgnoreIP(dstAddr) {
+	if dstAddr != nil && isOnNetworkList(dstAddr, ignoreIPBlocks) {
 		logger.Debug("Address is on pass list %s\n", dstAddr)
 		return result
 	}
 
-	// Lookup and get a score.
-	webrootResult, err := webroot.IPLookup(dstAddr.String())
+	var err error
+	if dstAddr != nil && srcAddr != nil && !isOnNetworkList(srcAddr, localNetworks) && isOnNetworkList(dstAddr, localNetworks) {
+		// Request to a local address from a remote place.. Use the Webroot IP database, otherwise default to URL database.
+		webrootResult, err = webroot.Lookup(dstAddr.String(), true)
+	} else {
+		webrootResult, err = webroot.Lookup(dstAddr.String(), false)
+	}
+
 	score := webrootResult[0].Reputation
 	logger.Debug("lookup %s, score %v\n", dstAddr.String(), score)
 	if err != nil {
@@ -214,7 +241,6 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 			srcTpl := mess.MsgTuple.ClientAddress.String() + ":" + strconv.Itoa(srcPort)
 
 			webrootResult[0].Ctid = ctid
-			logger.Debug("adding %v to rejectInfo map\n", webrootResult[0])
 			rejectInfoLock.Lock()
 			rejectInfo[srcTpl] = webrootResult[0]
 			rejectInfoLock.Unlock()
@@ -223,20 +249,20 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		kernel.NftSetAdd("ip", "nat", "tp_redirect", ctid, 0)
 
 		// Add stats to reporting. Ordering is important.
-		var tp_stats []interface{}
-		tp_stats = append(tp_stats, time.Now().UnixNano()/1000000)
-		tp_stats = append(tp_stats, dstAddr.String())
-		tp_stats = append(tp_stats, score)
+		var tpStats []interface{}
+		tpStats = append(tpStats, time.Now().UnixNano()/1000000)
+		tpStats = append(tpStats, dstAddr.String())
+		tpStats = append(tpStats, score)
 
-		reports.LogThreatpreventionStats(tp_stats)
+		reports.LogThreatpreventionStats(tpStats)
 	}
 	result.SessionRelease = true
 	return result
 }
 
-func isIgnoreIP(ip net.IP) bool {
-	for _, ignore := range ignoreIPBlocks {
-		if ignore.Contains(ip) {
+func isOnNetworkList(ip net.IP, list []*net.IPNet) bool {
+	for _, address := range list {
+		if address.Contains(ip) {
 			return true
 		}
 	}
