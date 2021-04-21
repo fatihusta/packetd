@@ -36,7 +36,7 @@ type repuCache struct {
 	name string
 }
 
-var CACHE_EXPIRE = 1 // Expiry in days
+var cacheExpire = 1 // Expiry in days
 
 var repuURLCache repuCache
 var repuIPCache repuCache
@@ -76,6 +76,7 @@ func Shutdown() {
 	connPool.Close()
 }
 
+// apiQuery talks to the bctid daemon.
 func apiQuery(cmd string, retry bool) (string, error) {
 	var err error = nil
 	s, _ := connPool.Get()
@@ -130,11 +131,11 @@ func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 			json.Unmarshal([]byte(entry.value), &result)
 			logger.Debug("Lookup, found cache entry %v\n", result)
 			return result, nil
-		} else {
-			res, err = queryIP(ip)
-			if err != nil {
-				updateCache(&repuIPCache, ip, res)
-			}
+		}
+		res, err = queryIP(ip)
+		if err != nil {
+			updateCache(&repuIPCache, ip, res)
+
 		}
 	} else { // URL DB
 		repuURLCache.lock.RLock()
@@ -161,8 +162,9 @@ func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 	return result, nil
 }
 
+// cleanCache cleans the *repuCache.
 func cleanCache(cache *repuCache) {
-	expiry := time.Now().AddDate(0, 0, -(CACHE_EXPIRE))
+	expiry := time.Now().AddDate(0, 0, -(cacheExpire))
 	repuURLCache.lock.Lock()
 	logger.Debug("Begin cache %s clean run, row count %i\n", cache.name, len(repuURLCache.data))
 	for key, value := range cache.data {
@@ -174,6 +176,7 @@ func cleanCache(cache *repuCache) {
 	repuURLCache.lock.Unlock()
 }
 
+// runCleanCache is a timer thread, runs periodically and cleans URL/IP cache.
 func runCleanCache() {
 	cleanerTicker := time.NewTicker(1 * time.Hour)
 
@@ -186,6 +189,7 @@ func runCleanCache() {
 	}
 }
 
+// updateCache updates an entry in the <cache>.
 func updateCache(cache *repuCache, entry string, data string) {
 	cache.lock.Lock()
 	cache.data[entry] = repuCacheEntry{value: data, age: time.Now()}
