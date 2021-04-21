@@ -21,9 +21,7 @@ import (
 
 const pluginName = "threatprevention"
 
-var tpLevel int
-var tpEnabled bool = false
-var tpRedirect bool = false
+var DEFAULT_LEVEL = 60
 
 var ignoreIPBlocks []*net.IPNet
 var localNetworks []*net.IPNet
@@ -33,6 +31,15 @@ var rejectInfoLock sync.RWMutex
 type contextKey struct {
 	key string
 }
+
+type tpSettingType struct {
+	Enabled  bool     `json: "enabled"`
+	Level    int      `json: "level"`
+	Redirect bool     `json: "redirect`
+	PassList []string `json: "passList"`
+}
+
+var tpSettings tpSettingType
 
 var connContextKey = &contextKey{"http-conn"}
 
@@ -101,61 +108,37 @@ func PluginShutdown() {
 	logger.Info("PluginShutdown(%s) has been called\n", pluginName)
 }
 
+func createSettings(m map[string]interface{}) {
+	tpSettings = tpSettingType{Enabled: false, Level: DEFAULT_LEVEL, Redirect: false, PassList: nil}
+	if m == nil {
+		logger.Warn("Failed to read setting value for setting threatprevention, using defaults\n")
+	} else {
+		if m["enabled"] != nil {
+			tpSettings.Enabled = m["enabled"].(bool)
+		}
+		if m["redirect"] != nil {
+			tpSettings.Redirect = m["redirect"].(bool)
+		}
+		if m["level"] != nil {
+			tpSettings.Level = m["level"].(int)
+		}
+		if m["passlist"] != nil {
+			tpSettings.PassList = m["passList"].([]string)
+		}
+	}
+}
+
 // Is called when we do a sync setting. Need to update threat level.
 func syncCallbackHandler() {
-	enabled, err := settings.GetSettings([]string{"threatprevention", "enabled"})
-	if err != nil || enabled == nil {
-		logger.Warn("Failed to read setting value for setting threatprevention/enabled, error: %v\n", err.Error())
-		tpEnabled = false
-		return
-	}
-	assertEnable, ok := enabled.(bool)
-	if ok != true || err != nil {
-		logger.Warn("Unable to parse threadprevention enabled flag, error: %v\n", err.Error())
-		tpEnabled = false
-		return
-	}
+	var systemTPsettings interface{}
+	systemTPsettings, _ = settings.GetSettings([]string{"threatprevention"})
+	createSettings(systemTPsettings.(map[string]interface{}))
 
-	redirect, err := settings.GetSettings([]string{"threatprevention", "redirect"})
-	if err != nil || enabled == nil {
-		logger.Warn("Failed to read setting value for setting threatprevention/redirect, error: %v\n", err.Error())
-		tpRedirect = false
-		return
-	}
-	assertRedirect, ok := redirect.(bool)
-	if ok != true || err != nil {
-		logger.Warn("Unable to parse threadprevention redirect flag, error: %v\n", err.Error())
-		tpRedirect = false
-		return
-	}
-
-	tpEnabled = assertEnable
-	tpRedirect = assertRedirect
-	// Need to load current threatprevention level from settings.
-	sensitivity, err := settings.GetSettings([]string{"threatprevention", "sensitivity"})
-	if err != nil {
-		logger.Warn("Failed to read setting value for setting threatprevention/sensitivity, error: %v\n", err.Error())
-		logger.Warn("Failed to get threatprevention level. Default to level 80\n")
-		tpLevel = 80
-	} else {
-		tpLevel, err = strconv.Atoi(sensitivity.(string))
-		if err != nil {
-			logger.Warn("Failed to read setting value for setting threatprevention/sensitivity, error: %v\n", err.Error())
-			logger.Warn("Failed to get threatprevention level. Default to level 80\n")
-			tpLevel = 80
-		}
-	}
-	logger.Debug("Threat prevention level set to %v\n", tpLevel)
-
-	// Parse passlist.
-	passList, err := settings.GetSettings([]string{"threatprevention", "passList"})
-
-	for _, entry := range passList.([]interface{}) {
-		if m, ok := entry.(map[string]interface{}); ok {
-			logger.Debug("Inserting CIDR into ignore list: %s\n", m["host"].(string))
-			_, pass, _ := net.ParseCIDR(m["host"].(string))
-			ignoreIPBlocks = append(ignoreIPBlocks, pass)
-		}
+	logger.Debug("tpSettings are (enabled, level, redirect, passList) %v\n", tpSettings)
+	for _, entry := range tpSettings.PassList {
+		logger.Debug("Inserting CIDR into ignore list: %s\n", entry)
+		_, pass, _ := net.ParseCIDR(entry)
+		ignoreIPBlocks = append(ignoreIPBlocks, pass)
 	}
 
 	// Get Local LAN networks.
@@ -185,7 +168,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	var webrootResult []webroot.LookupResult
 	result.SessionRelease = true
 
-	if !tpEnabled {
+	if !tpSettings.Enabled {
 		return result
 	}
 
@@ -232,11 +215,11 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		return result
 	}
 
-	if score < tpLevel {
+	if score < tpSettings.Level {
 		logger.Debug("blocked %s:%v, score %v\n", dstAddr.String(), mess.MsgTuple.ServerPort, score)
 		srvPort := mess.MsgTuple.ServerPort
 		// Only save TP info if this is a http/https blocked connection.
-		if tpRedirect && (srvPort == 80 || srvPort == 443) {
+		if tpSettings.Redirect && (srvPort == 80 || srvPort == 443) {
 			srcPort := int(mess.Session.GetClientSideTuple().ClientPort)
 			srcTpl := mess.MsgTuple.ClientAddress.String() + ":" + strconv.Itoa(srcPort)
 
