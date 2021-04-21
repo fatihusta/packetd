@@ -142,7 +142,7 @@ func syncCallbackHandler() {
 	}
 
 	// Get Local LAN networks.
-	networks, err := settings.GetSettings([]string{"network", "interfaces"})
+	networks, _ := settings.GetSettings([]string{"network", "interfaces"})
 
 	for _, intface := range networks.([]interface{}) {
 		if m, ok := intface.(map[string]interface{}); ok {
