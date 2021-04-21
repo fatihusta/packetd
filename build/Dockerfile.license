@@ -1,0 +1,34 @@
+# This builder container builds the untangle-license
+FROM golang:1.15.7-alpine
+
+RUN go version
+# build untangle-license
+RUN mkdir -p /go \
+ && mkdir -p /build \
+ && mkdir -p /go/libs
+
+WORKDIR /go
+
+RUN apk update \
+ && apk add openssh-client git \
+ && rm -rf /var/cache/apk/*
+
+RUN mkdir -p -m 0600 ~/.ssh \
+ && ssh-keyscan github.com >> ~/.ssh/known_hosts 
+
+RUN --mount=type=ssh git clone git@github.com:untangle/client-license-service.git \
+ && cd client-license-service \
+ && git fetch \
+ && git checkout main 
+
+RUN --mount=type=ssh cd client-license-service \
+ && go get -u golang.org/x/lint/golint \
+ && go mod tidy \
+ && go mod vendor 
+
+ARG IS_DEV
+
+RUN --mount=type=ssh cd client-license-service \
+ && export VERSION="$(git describe --tags --always --long --dirty)" \
+ && golint -set_exit_status $(go list ./...) \
+ && go build --mod=vendor -ldflags "-X 'main.Version=${VERSION}' -X 'main.IsDev=${IS_DEV}'" -o /build/client-license-service 

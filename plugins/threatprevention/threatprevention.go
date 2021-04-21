@@ -249,12 +249,12 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		kernel.NftSetAdd("ip", "nat", "tp_redirect", ctid, 0)
 
 		// Add stats to reporting. Ordering is important.
-		var tp_stats []interface{}
-		tp_stats = append(tp_stats, time.Now().UnixNano()/1000000)
-		tp_stats = append(tp_stats, dstAddr.String())
-		tp_stats = append(tp_stats, score)
+		var tpStats []interface{}
+		tpStats = append(tpStats, time.Now().UnixNano()/1000000)
+		tpStats = append(tpStats, dstAddr.String())
+		tpStats = append(tpStats, score)
 
-		reports.LogThreatpreventionStats(tp_stats)
+		reports.LogThreatpreventionStats(tpStats)
 	}
 	result.SessionRelease = true
 	return result
