@@ -123,7 +123,7 @@ func createSettings(m map[string]interface{}) {
 		if m["sensitivity"] != nil {
 			tpSettings.Sensitivity, err = strconv.Atoi(m["sensitivity"].(string))
 			if err != nil {
-				logger.Warn("not able to set threat prevention level, using default. Err: %v\n", err.Error())
+				logger.Warn("not able to set threat prevention sensitivity level, using default. Err: %v\n", err.Error())
 				tpSettings.Sensitivity = DEFAULT_SENSITIVITY
 			}
 		}
