@@ -34,7 +34,7 @@ type contextKey struct {
 
 type tpSettingType struct {
 	Enabled  bool     `json: "enabled"`
-	Level    int      `json: "level"`
+	Level    int      `json: "sensitivity"`
 	Redirect bool     `json: "redirect`
 	PassList []string `json: "passList"`
 }
@@ -109,6 +109,7 @@ func PluginShutdown() {
 }
 
 func createSettings(m map[string]interface{}) {
+	var err error
 	tpSettings = tpSettingType{Enabled: false, Level: DEFAULT_LEVEL, Redirect: false, PassList: nil}
 	if m == nil {
 		logger.Warn("Failed to read setting value for setting threatprevention, using defaults\n")
@@ -119,8 +120,12 @@ func createSettings(m map[string]interface{}) {
 		if m["redirect"] != nil {
 			tpSettings.Redirect = m["redirect"].(bool)
 		}
-		if m["level"] != nil {
-			tpSettings.Level = m["level"].(int)
+		if m["sensitivity"] != nil {
+			tpSettings.Level, err = strconv.Atoi(m["sensitivity"].(string))
+			if err != nil {
+				logger.Warn("not able to set threat prevention level, using default. Err: %v\n", err.Error())
+				tpSettings.Level = DEFAULT_LEVEL
+			}
 		}
 		if m["passlist"] != nil {
 			tpSettings.PassList = m["passList"].([]string)
