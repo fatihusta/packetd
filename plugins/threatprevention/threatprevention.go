@@ -21,7 +21,7 @@ import (
 
 const pluginName = "threatprevention"
 
-var DEFAULT_LEVEL = 60
+var DEFAULT_SENSITIVITY = 60
 
 var ignoreIPBlocks []*net.IPNet
 var localNetworks []*net.IPNet
@@ -33,10 +33,10 @@ type contextKey struct {
 }
 
 type tpSettingType struct {
-	Enabled  bool     `json: "enabled"`
-	Level    int      `json: "sensitivity"`
-	Redirect bool     `json: "redirect`
-	PassList []string `json: "passList"`
+	Enabled     bool     `json: "enabled"`
+	Sensitivity int      `json: "sensitivity"`
+	Redirect    bool     `json: "redirect`
+	PassList    []string `json: "passList"`
 }
 
 var tpSettings tpSettingType
@@ -110,7 +110,7 @@ func PluginShutdown() {
 
 func createSettings(m map[string]interface{}) {
 	var err error
-	tpSettings = tpSettingType{Enabled: false, Level: DEFAULT_LEVEL, Redirect: false, PassList: nil}
+	tpSettings = tpSettingType{Enabled: false, Sensitivity: DEFAULT_SENSITIVITY, Redirect: false, PassList: nil}
 	if m == nil {
 		logger.Warn("Failed to read setting value for setting threatprevention, using defaults\n")
 	} else {
@@ -121,10 +121,10 @@ func createSettings(m map[string]interface{}) {
 			tpSettings.Redirect = m["redirect"].(bool)
 		}
 		if m["sensitivity"] != nil {
-			tpSettings.Level, err = strconv.Atoi(m["sensitivity"].(string))
+			tpSettings.Sensitivity, err = strconv.Atoi(m["sensitivity"].(string))
 			if err != nil {
 				logger.Warn("not able to set threat prevention level, using default. Err: %v\n", err.Error())
-				tpSettings.Level = DEFAULT_LEVEL
+				tpSettings.Sensitivity = DEFAULT_SENSITIVITY
 			}
 		}
 		if m["passlist"] != nil {
@@ -220,7 +220,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		return result
 	}
 
-	if score < tpSettings.Level {
+	if score < tpSettings.Sensitivity {
 		logger.Debug("blocked %s:%v, score %v\n", dstAddr.String(), mess.MsgTuple.ServerPort, score)
 		srvPort := mess.MsgTuple.ServerPort
 		// Only save TP info if this is a http/https blocked connection.
