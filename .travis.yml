@@ -1,6 +1,9 @@
 sudo: required
 env:
   global:
+  # DOCKER_PASSWORD
+  - secure: "wu/fIOi7F+Yyx/VjyWgmWWDsyTUWbHH2A1OT8w9j0WqS3K1aFYM4V+XYI3NwsgOBvbSOYon71pK9XIZpXLLWABVxa5K6UFTii0Lrj1D6E9Oe4jbmRUfOBppX2Iiznl0G5yvZ0tw4R6/4JJHAFN+xEPAs3sM7HdZ8ALXllRKmvQW72ZCtrnBPcknlMZdY5lAQHLPZ0vA294iLeSUKljuiDg1+Ng9mSAMQKXr4vBemMsnOJ60xcUXP69adzbO/MyhPFDgiOGXuV2nnY7G+ls2P6m0XwUK4AKBld12KbPuaTULXKeEKM5zKPHwoyUolyxskseiJfk90dEe8u2+ZnkneeDjBwacTy9NTzZNIBQD6DCA8yc973PI/be09haPh5hoKD+oCP2X2SrQ7gmBCqXubXqYKT/IMbfK+w/EceFzcDHeyj6fXbBd42HeOresa8x3eBk2EMiBcTQQRfg9DnqOzNf5DNLojWt5T/lfKXhlqa3dU0OnrDF8OxjndFAD7VeGLln04C8x4fQHBdPQtxxON78te2tDNz6PZOLk4Di7Dctoo6HQg21oQnapOWZ7hZbn06/InFBDnyL5CfW9lyKTVqy51N1flf8m0EGjgtQ3U1HA8+0gDqTwGXRs6T4vKx/mRsghppIM89TQu0pn8Q0kJd9LtgHX1XsoWX72QSvQOF38="
+  - DOCKER_USERNAME: untangleengineering
   - GOPATH="${HOME}/go"
   - DIR="${GOPATH}/src/github.com/untangle"
   matrix:
@@ -9,6 +12,7 @@ env:
 services:
 - docker
 before_install:
+- echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 - mkdir -p "$DIR"
 - mv "$TRAVIS_BUILD_DIR" "${DIR}/packetd"
 - cd "${DIR}/packetd"
