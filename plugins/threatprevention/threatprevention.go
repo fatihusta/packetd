@@ -228,6 +228,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 			srcPort := int(mess.Session.GetClientSideTuple().ClientPort)
 			srcTpl := mess.MsgTuple.ClientAddress.String() + ":" + strconv.Itoa(srcPort)
 
+			webrootResult[0].IP = dstAddr.String()
 			webrootResult[0].Ctid = ctid
 			rejectInfoLock.Lock()
 			rejectInfo[srcTpl] = webrootResult[0]
