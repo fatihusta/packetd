@@ -151,7 +151,7 @@ func syncCallbackHandler() {
 
 	for _, intface := range networks.([]interface{}) {
 		if m, ok := intface.(map[string]interface{}); ok {
-			if m["wan"].(bool) {
+			if m["wan"].(bool) || !m["enabled"].(bool) || m["v4StaticPrefix"] == nil || m["v4StaticAddress"] == nil {
 				continue
 			}
 			prefix := strconv.FormatFloat(m["v4StaticPrefix"].(float64), 'f', -1, 64)
