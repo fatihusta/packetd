@@ -204,11 +204,14 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	}
 
 	var err error
+	srvPort := mess.MsgTuple.ServerPort
+	// Inbound connections use IPdb
 	if dstAddr != nil && srcAddr != nil && !isOnNetworkList(srcAddr, localNetworks) && isOnNetworkList(dstAddr, localNetworks) {
-		// Request to a local address from a remote place.. Use the Webroot IP database, otherwise default to URL database.
 		webrootResult, err = webroot.Lookup(dstAddr.String(), true)
-	} else {
+	} else if srvPort == 80 || srvPort == 443 { // For outbound HTTP/HTTPS use URLdb.
 		webrootResult, err = webroot.Lookup(dstAddr.String(), false)
+	} else { // Everyting else use IPdb.
+		webrootResult, err = webroot.Lookup(dstAddr.String(), true)
 	}
 
 	score := webrootResult[0].Reputation
@@ -222,7 +225,6 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 
 	if score < tpSettings.Sensitivity {
 		logger.Debug("blocked %s:%v, score %v\n", dstAddr.String(), mess.MsgTuple.ServerPort, score)
-		srvPort := mess.MsgTuple.ServerPort
 		// Only save TP info if this is a http/https blocked connection.
 		if tpSettings.Redirect && (srvPort == 80 || srvPort == 443) {
 			srcPort := int(mess.Session.GetClientSideTuple().ClientPort)
