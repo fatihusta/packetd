@@ -223,7 +223,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		return result
 	}
 
-	if score < tpSettings.Sensitivity {
+	if score <= tpSettings.Sensitivity {
 		logger.Debug("blocked %s:%v, score %v\n", dstAddr.String(), mess.MsgTuple.ServerPort, score)
 		// Only save TP info if this is a http/https blocked connection.
 		if tpSettings.Redirect && (srvPort == 80 || srvPort == 443) {
