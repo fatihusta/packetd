@@ -200,16 +200,16 @@ func updateCache(cache *repuCache, entry string, data string) {
 func GetRiskLevel(risk int) string {
 	var result string
 	result = "Trustworthy"
-	if risk < 80 {
+	if risk <= 80 {
 		result = "Low Risk"
 	}
-	if risk < 60 {
+	if risk <= 60 {
 		result = "Moderate Risk"
 	}
-	if risk < 40 {
+	if risk <= 40 {
 		result = "Suspicious"
 	}
-	if risk < 20 {
+	if risk <= 20 {
 		result = "High Risk"
 	}
 	return result
