@@ -40,7 +40,7 @@ type tpSettingType struct {
 }
 
 var tpSettings tpSettingType
-
+var pluginEnabled bool
 var connContextKey = &contextKey{"http-conn"}
 
 var redirectReplyTemplate = `<html>
@@ -99,12 +99,19 @@ func PluginStartup() {
 	rejectInfoLock = sync.RWMutex{}
 
 	dispatch.InsertNfqueueSubscription(pluginName, dispatch.ThreatPreventionPriority, TpNfqueueHandler)
+	pluginEnabled = true
 }
 
 // PluginShutdown function called when the daemon is shutting down. We call Done
 // for the argumented WaitGroup to let the main process know we're finished.
 func PluginShutdown() {
 	logger.Info("PluginShutdown(%s) has been called\n", pluginName)
+	pluginEnabled = false
+}
+
+// PluginStatus function returns the status (if plugin is enabled (true) or disabled (false) currently)
+func PluginEnabled() bool {
+	return pluginEnabled
 }
 
 func createSettings(m map[string]interface{}) {

@@ -341,7 +341,6 @@ func startPlugins() {
 		example.PluginStartup,
 		classify.PluginStartup,
 		geoip.PluginStartup,
-		threatprevention.PluginStartup,
 		certfetch.PluginStartup,
 		certsniff.PluginStartup,
 		dns.PluginStartup,
