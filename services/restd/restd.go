@@ -127,6 +127,10 @@ func Startup() {
 
 	api.GET("/threatprevention/lookup/:host", threatpreventionGetInfo)
 
+	api.GET("/license/enabled/:appname", licenseEnabled)
+	api.PUT("/license/setState/:appname")
+
+
 	api.GET("/wireguard/keypair", wireguardKeyPair)
 	api.POST("/wireguard/publickey", wireguardPublicKey)
 
