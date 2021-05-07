@@ -490,7 +490,7 @@ func getCommandFindAccount() (map[string]interface{}, error) {
 
 	transport := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	client := &http.Client{Transport: transport, Timeout: time.Duration(5 * time.Second)}
-	req, err := http.NewRequest("GET", "https://www.untangle.com/store/open.php?action=find_account&uid=" + uid, nil)
+	req, err := http.NewRequest("GET", "https://www.untangle.com/store/open.php?action=find_account&uid="+uid, nil)
 	if err != nil {
 		logger.Err("Error performing request for find_account: %v\n", err)
 		return jsonO, err
@@ -526,7 +526,6 @@ func getCommandFindAccount() (map[string]interface{}, error) {
 
 	return jsonO, nil
 }
-
 
 // getLicenseInfo returns the license info as a json map
 func getLicenseInfo() (map[string]interface{}, error) {
@@ -665,14 +664,14 @@ func getWifiModelist(device string) ([]wifiModeInfo, error) {
 
 // diagnostics result root
 type diagnosticsResult struct {
-	DnsResolver []*diagnosticsDnsResult `json:"dnsResolver"`
+	DNSResolver []*diagnosticsDNSResult `json:"dnsResolver"`
 }
 
 // DNS resolver diagnostics result root
-type diagnosticsDnsResult struct {
-	Name string `json:"name"`
+type diagnosticsDNSResult struct {
+	Name            string `json:"name"`
 	ResolverAddress string `json:"resolverAddress"`
-	Pass bool   `json:"pass"`
+	Pass            bool   `json:"pass"`
 }
 
 // Get diagnostics results
@@ -680,17 +679,17 @@ func getStatusDiagnostics() (*diagnosticsResult, error) {
 	var diagnosticsResult = new(diagnosticsResult)
 
 	// DNS resolver
-	dnsResolverResults, err := getStatusDiagnosticsDns()
+	dnsResolverResults, err := getStatusDiagnosticsDNS()
 	if err == nil {
-		diagnosticsResult.DnsResolver = dnsResolverResults
+		diagnosticsResult.DNSResolver = dnsResolverResults
 	}
 
 	return diagnosticsResult, err
 }
 
 // Get DNS resolver results
-func getStatusDiagnosticsDns() ([]*diagnosticsDnsResult, error) {
-	var diagnosticsDnsResults = []*diagnosticsDnsResult{}
+func getStatusDiagnosticsDNS() ([]*diagnosticsDNSResult, error) {
+	var diagnosticsDNSResults = []*diagnosticsDNSResult{}
 
 	// Get resolvers from settings
 	networkRaw, err := settings.GetCurrentSettings([]string{"network", "interfaces"})
@@ -726,35 +725,35 @@ func getStatusDiagnosticsDns() ([]*diagnosticsDnsResult, error) {
 		}
 
 		// we must have the device, interfaceId, and configType
-		if item["device"] == nil || item["interfaceId"] == nil || item["configType"] == nil || item ["configType"] != "ADDRESSED" {
+		if item["device"] == nil || item["interfaceId"] == nil || item["configType"] == nil || item["configType"] != "ADDRESSED" {
 			continue
 		}
 		if item["v4ConfigType"] == "STATIC" {
 			if item["v4StaticDNS1"] != nil {
-				dnsDiagnostic := new(diagnosticsDnsResult)
+				dnsDiagnostic := new(diagnosticsDNSResult)
 				dnsDiagnostic.Name = item["name"].(string)
 				dnsDiagnostic.ResolverAddress = item["v4StaticDNS1"].(string)
-				diagnosticsDnsResults = append(diagnosticsDnsResults, dnsDiagnostic)
+				diagnosticsDNSResults = append(diagnosticsDNSResults, dnsDiagnostic)
 			}
 			if item["v4StaticDNS2"] != nil {
-				dnsDiagnostic := new(diagnosticsDnsResult)
+				dnsDiagnostic := new(diagnosticsDNSResult)
 				dnsDiagnostic.Name = item["name"].(string)
 				dnsDiagnostic.ResolverAddress = item["v4StaticDNS2"].(string)
-				diagnosticsDnsResults = append(diagnosticsDnsResults, dnsDiagnostic)
+				diagnosticsDNSResults = append(diagnosticsDNSResults, dnsDiagnostic)
 			}
 		}
 		if item["v6ConfigType"] == "STATIC" {
 			if item["v6StaticDNS1"] != nil {
-				dnsDiagnostic := new(diagnosticsDnsResult)
+				dnsDiagnostic := new(diagnosticsDNSResult)
 				dnsDiagnostic.Name = item["name"].(string)
 				dnsDiagnostic.ResolverAddress = item["v6StaticDNS1"].(string)
-				diagnosticsDnsResults = append(diagnosticsDnsResults, dnsDiagnostic)
+				diagnosticsDNSResults = append(diagnosticsDNSResults, dnsDiagnostic)
 			}
 			if item["v6StaticDNS2"] != nil {
-				dnsDiagnostic := new(diagnosticsDnsResult)
+				dnsDiagnostic := new(diagnosticsDNSResult)
 				dnsDiagnostic.Name = item["name"].(string)
 				dnsDiagnostic.ResolverAddress = item["v6StaticDNS2"].(string)
-				diagnosticsDnsResults = append(diagnosticsDnsResults, dnsDiagnostic)
+				diagnosticsDNSResults = append(diagnosticsDNSResults, dnsDiagnostic)
 			}
 		}
 	}
@@ -779,18 +778,18 @@ func getStatusDiagnosticsDns() ([]*diagnosticsDnsResult, error) {
 		}
 		for _, server := range status.DNSServers {
 			logger.Warn("DNS Server: %v\n", server)
-			dnsDiagnostic := new(diagnosticsDnsResult)
+			dnsDiagnostic := new(diagnosticsDNSResult)
 			dnsDiagnostic.Name = status.InterfaceName
 			dnsDiagnostic.ResolverAddress = server
-			diagnosticsDnsResults = append(diagnosticsDnsResults, dnsDiagnostic)
+			diagnosticsDNSResults = append(diagnosticsDNSResults, dnsDiagnostic)
 		}
 	}
 
 	// Walk diagnosticsDnsResult and perform dig commands
-	for _, status := range diagnosticsDnsResults {
-		if strings.Contains(status.ResolverAddress,":") {
+	for _, status := range diagnosticsDNSResults {
+		if strings.Contains(status.ResolverAddress, ":") {
 			// ipv6 queries are problematic at this time.  Ignore them.
-			status.Pass = true;
+			status.Pass = true
 			continue
 		}
 		// Perform DNS lookup using dig with a 1 second timeout per default (3) queries.
@@ -799,18 +798,18 @@ func getStatusDiagnosticsDns() ([]*diagnosticsDnsResult, error) {
 		err := cmd.Run()
 		if err != nil {
 			if exitError, ok := err.(*exec.ExitError); ok {
-				if exitError.ExitCode() == 0{
-					status.Pass = true;
-				}else{
-					status.Pass = false;
+				if exitError.ExitCode() == 0 {
+					status.Pass = true
+				} else {
+					status.Pass = false
 				}
 			}
-		}else{
+		} else {
 			status.Pass = true
 		}
 	}
 
-	return diagnosticsDnsResults, nil
+	return diagnosticsDNSResults, nil
 }
 
 // runIPCommand is used to run various commands using iproute2, the results from the output are byte arrays which represent json strings

@@ -21,7 +21,7 @@ import (
 
 const pluginName = "threatprevention"
 
-var DEFAULT_SENSITIVITY = 60
+var defaultSensitivity = 60
 
 var ignoreIPBlocks []*net.IPNet
 var localNetworks []*net.IPNet
@@ -109,14 +109,14 @@ func PluginShutdown() {
 	pluginEnabled = false
 }
 
-// PluginStatus function returns the status (if plugin is enabled (true) or disabled (false) currently)
+// PluginEnabled function returns the status (if plugin is enabled (true) or disabled (false) currently)
 func PluginEnabled() bool {
 	return pluginEnabled
 }
 
 func createSettings(m map[string]interface{}) {
 	var err error
-	tpSettings = tpSettingType{Enabled: false, Sensitivity: DEFAULT_SENSITIVITY, Redirect: false, PassList: nil}
+	tpSettings = tpSettingType{Enabled: false, Sensitivity: defaultSensitivity, Redirect: false, PassList: nil}
 	if m == nil {
 		logger.Warn("Failed to read setting value for setting threatprevention, using defaults\n")
 	} else {
@@ -130,7 +130,7 @@ func createSettings(m map[string]interface{}) {
 			tpSettings.Sensitivity, err = strconv.Atoi(m["sensitivity"].(string))
 			if err != nil {
 				logger.Warn("not able to set threat prevention sensitivity level, using default. Err: %v\n", err.Error())
-				tpSettings.Sensitivity = DEFAULT_SENSITIVITY
+				tpSettings.Sensitivity = defaultSensitivity
 			}
 		}
 		if m["passlist"] != nil {

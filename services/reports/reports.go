@@ -1190,6 +1190,7 @@ func LogSessionStats(values []interface{}) {
 	}
 }
 
+// LogThreatpreventionStats is called to insert a row into the blocked table
 func LogThreatpreventionStats(values []interface{}) {
 	select {
 	case threatpreventionStatsQueue <- values:

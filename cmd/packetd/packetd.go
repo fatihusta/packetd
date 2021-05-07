@@ -38,6 +38,7 @@ import (
 	"github.com/untangle/packetd/services/dict"
 	"github.com/untangle/packetd/services/dispatch"
 	"github.com/untangle/packetd/services/kernel"
+	"github.com/untangle/packetd/services/license"
 	"github.com/untangle/packetd/services/logger"
 	"github.com/untangle/packetd/services/netspace"
 	"github.com/untangle/packetd/services/overseer"
@@ -294,6 +295,7 @@ func startServices() {
 	certmanager.Startup()
 	appclassmanager.Startup()
 	webroot.Startup()
+	license.Startup()
 
 	if !kernel.FlagNoCloud {
 		predicttrafficsvc.Startup()
@@ -320,6 +322,7 @@ func stopServices() {
 		kernel.Shutdown()
 		webroot.Shutdown()
 		logger.Shutdown()
+		license.Shutdown()
 		c <- true
 	}()
 
