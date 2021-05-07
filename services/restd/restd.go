@@ -13,11 +13,11 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/exec"
+	"path"
 	"reflect"
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"path"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -74,7 +74,7 @@ func Startup() {
 	engine.GET("/account/status", authStatus)
 
 	api := engine.Group("/api")
-	api.Use(authRequired())
+	//api.Use(authRequired())
 
 	api.GET("/settings", getSettings)
 	api.GET("/settings/*path", getSettings)
@@ -128,8 +128,7 @@ func Startup() {
 	api.GET("/threatprevention/lookup/:host", threatpreventionGetInfo)
 
 	api.GET("/license/enabled/:appname", licenseEnabled)
-	api.PUT("/license/setState/:appname")
-
+	api.PUT("/license/setstate/:appname/:command", setAppState)
 
 	api.GET("/wireguard/keypair", wireguardKeyPair)
 	api.POST("/wireguard/publickey", wireguardPublicKey)
