@@ -74,7 +74,7 @@ func Startup() {
 	engine.GET("/account/status", authStatus)
 
 	api := engine.Group("/api")
-	//api.Use(authRequired())
+	api.Use(authRequired())
 
 	api.GET("/settings", getSettings)
 	api.GET("/settings/*path", getSettings)
