@@ -15,6 +15,7 @@ import (
 
 	To implement a new licensed app (plugin) do the following.
 		- plugin must have start (Startup), stop (Shutdown) and enabled hooks.
+		- plugin shutdown hook must be idempotent.
 		- The enabled hook is of type 'func() bool' and returns true if plugin is currently running/enabled, otherwise false.
 		- Add plugin hooks in the validApps list.
 		- Do no add the plugin Startup() and Shutown() to the normal dispatch.
@@ -74,7 +75,7 @@ func Startup() {
 	}
 
 	// Set each app to its previous state.
-	logger.Debug("appstate %v+ %v\n", appStates)
+	logger.Debug("appstate %+v\n", appStates)
 	for _, o := range appStates {
 		if _, err = findApp(o.Name); err != nil {
 			logger.Debug("App %s not found. Err: %v", o.Name, err)
