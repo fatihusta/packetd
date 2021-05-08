@@ -184,6 +184,13 @@ func InsertNfqueueSubscription(owner string, priority int, function NfqueueHandl
 	}
 }
 
+// RemoveNfqueueSubscription removes a subsxcription for receiving nfqueue messages
+func RemoveNfqueueSubscription(owner string) {
+	nfqueueSubMutex.Lock()
+	delete(nfqueueSubList, owner)
+	nfqueueSubMutex.Unlock()
+}
+
 // AttachNfqueueSubscriptions attaches active nfqueue subscriptions to the argumented Session
 func AttachNfqueueSubscriptions(session *Session) {
 	session.subLocker.Lock()
