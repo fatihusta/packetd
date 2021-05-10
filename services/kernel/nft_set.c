@@ -119,7 +119,7 @@ int manage_set_elem(uint16_t nft_msg_type, char *fam, char *table, char *set, ui
 	}
 
 	mnl_socket_close(nl);
-	if (ret == -1 && errno != EEXIST) {
+	if (ret == -1 && (errno != EEXIST && errno != ENOENT)) {
 		logmessage(LOG_ERR,logsrc,"Could not run mnl callback: %d ctid %u - %s, %s, %s %u\n", errno, ctid, fam, table, set, portid);
 		return EXIT_FAILURE;
 	}

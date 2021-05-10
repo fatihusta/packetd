@@ -242,6 +242,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		var tpStats []interface{}
 		tpStats = append(tpStats, time.Now().UnixNano()/1000000)
 		tpStats = append(tpStats, dstAddr.String())
+		tpStats = append(tpStats, srcAddr.String())
 		tpStats = append(tpStats, score)
 
 		reports.LogThreatpreventionStats(tpStats)
