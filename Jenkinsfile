@@ -17,7 +17,7 @@ pipeline {
 
       parallel {
         stage('Build musl') {
-	  agent { label 'mfw' }
+	  agent { label 'docker' }
 
           environment {
             libc = 'musl'
