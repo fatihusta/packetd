@@ -141,6 +141,7 @@ func GetThreatpreventionStatsColumnList() []string {
 	return []string{
 		"time_stamp",
 		"blocked_address",
+		"client_address",
 		"threat_level",
 	}
 }

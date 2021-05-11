@@ -21,7 +21,7 @@ import (
 
 const pluginName = "threatprevention"
 
-var DEFAULT_SENSITIVITY = 60
+var DEFAULT_SENSITIVITY = 20
 
 var ignoreIPBlocks []*net.IPNet
 var localNetworks []*net.IPNet
@@ -120,7 +120,7 @@ func createSettings(m map[string]interface{}) {
 			tpSettings.Redirect = m["redirect"].(bool)
 		}
 		if m["sensitivity"] != nil {
-			tpSettings.Sensitivity, err = strconv.Atoi(m["sensitivity"].(string))
+			tpSettings.Sensitivity = int(m["sensitivity"].(float64))
 			if err != nil {
 				logger.Warn("not able to set threat prevention sensitivity level, using default. Err: %v\n", err.Error())
 				tpSettings.Sensitivity = DEFAULT_SENSITIVITY
@@ -242,6 +242,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 		var tpStats []interface{}
 		tpStats = append(tpStats, time.Now().UnixNano()/1000000)
 		tpStats = append(tpStats, dstAddr.String())
+		tpStats = append(tpStats, srcAddr.String())
 		tpStats = append(tpStats, score)
 
 		reports.LogThreatpreventionStats(tpStats)
