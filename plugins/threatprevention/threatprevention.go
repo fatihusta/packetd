@@ -21,7 +21,7 @@ import (
 
 const pluginName = "threatprevention"
 
-var DEFAULT_SENSITIVITY = 20
+var defaultSensitivity = 20
 
 var ignoreIPBlocks []*net.IPNet
 var localNetworks []*net.IPNet
