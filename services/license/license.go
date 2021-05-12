@@ -40,7 +40,7 @@ var validApps []appHook = []appHook{
 		enabled: threatprevention.PluginEnabled,
 	},
 	{
-		name:    "qos",
+		name:    "throughput",
 		start:   throughput.Restart,
 		stop:    throughput.Restart,
 		enabled: throughput.IsEnabled,
