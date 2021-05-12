@@ -34,20 +34,20 @@ type appHook struct {
 // licensed applications.
 var validApps []appHook = []appHook{
 	{
-		name:    "threatprevention",
+		name:    "untangle-node-threat-prevention",
 		start:   threatprevention.PluginStartup,
 		stop:    threatprevention.PluginShutdown,
 		enabled: threatprevention.PluginEnabled,
 	},
 	{
-		name:    "throughput",
+		name:    "untangle-node-throughput",
 		start:   throughput.Restart,
 		stop:    throughput.Restart,
 		enabled: throughput.IsEnabled,
 	},
 }
 
-var errAppNotFoundError error = errors.New("app not found")
+var errAppNotFoundError error = errors.New("App not found")
 
 // State is used to set the desired state of an app.
 type State int

@@ -152,7 +152,6 @@ func PluginEnabled() bool {
 }
 
 func createSettings(m map[string]interface{}) {
-	var err error
 	tpSettings = tpSettingType{Enabled: false, Sensitivity: defaultSensitivity, Redirect: false, PassList: nil}
 	if m == nil {
 		logger.Warn("Failed to read setting value for setting threatprevention, using defaults\n")
@@ -164,10 +163,12 @@ func createSettings(m map[string]interface{}) {
 			tpSettings.Redirect = m["redirect"].(bool)
 		}
 		if m["sensitivity"] != nil {
-			tpSettings.Sensitivity, err = strconv.Atoi(m["sensitivity"].(string))
-			if err != nil {
-				logger.Warn("not able to set threat prevention sensitivity level, using default. Err: %v\n", err.Error())
+			floatSensitivity, ok := m["sensitivity"].(float64)
+			if !ok {
+				logger.Warn("not able to set threat prevention sensitivity level, using default. Got %T, expected int. %f\n", m["sensitivity"])
 				tpSettings.Sensitivity = defaultSensitivity
+			} else {
+				tpSettings.Sensitivity = int(floatSensitivity)
 			}
 		}
 		if m["passlist"] != nil {
