@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 
 	"github.com/untangle/packetd/plugins/threatprevention"
-	"github.com/untangle/packetd/plugins/qos"
+	"github.com/untangle/packetd/plugins/throughput"
 	"github.com/untangle/packetd/services/logger"
 )
 
@@ -41,9 +41,9 @@ var validApps []appHook = []appHook{
 	},
 	{
 		name:    "qos",
-		start:   qos.Restart,
-		stop:    qos.Restart,
-		enabled: qos.IsEnabled,
+		start:   throughput.Restart,
+		stop:    throughput.Restart,
+		enabled: throughput.IsEnabled,
 	},
 }
 
