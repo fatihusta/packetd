@@ -67,6 +67,11 @@ var redirectReplyTemplate = `<html>
 // our shutdown function to return during shutdown.
 func PluginStartup() {
 	logger.Info("PluginStartup(%s) has been called\n", pluginName)
+
+	if pluginEnabled {
+		return
+	}
+
 	ignoreIPBlocks = make([]*net.IPNet, 0)
 	localNetworks = make([]*net.IPNet, 0)
 
