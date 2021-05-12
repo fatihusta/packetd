@@ -1,4 +1,4 @@
-package qos
+package throughput
 
 import (
 	"os/exec"
