@@ -11,7 +11,7 @@ var qosEnabled = true
 // Restart() is called when there are any qos license changes.
 func Restart() {
 
-	cmd := exec.Command("/etc/init.d/qos restart")
+	cmd := exec.Command("/etc/init.d/qos", "restart")
 	err := cmd.Run()
 
 	if err != nil {
