@@ -741,7 +741,7 @@ func ginlogger() gin.HandlerFunc {
 }
 
 func fetchLicensesHandler(c *gin.Context) {
-	err := exec.Command("/usr/bin/fetch-licenses.sh").Run()
+	err := exec.Command("/etc/init.d/clientlic", "restart").Run()
 	if err != nil {
 		logger.Warn("license fetch failed: %s\n", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch license"})
