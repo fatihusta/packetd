@@ -27,7 +27,7 @@ func setAppState(c *gin.Context) {
 	}
 
 	if err == nil {
-		err = license.SetAppState(command)
+		err = license.SetAppState(command, true)
 	}
 
 	if err != nil {

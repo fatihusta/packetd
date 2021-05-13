@@ -164,10 +164,6 @@ func createSettings(m map[string]interface{}) {
 		}
 		if m["sensitivity"] != nil {
 			tpSettings.Sensitivity = int(m["sensitivity"].(float64))
-			if err != nil {
-				logger.Warn("not able to set threat prevention sensitivity level, using default. Err: %v\n", err.Error())
-				tpSettings.Sensitivity = DEFAULT_SENSITIVITY
-			}
 		}
 		if m["passlist"] != nil {
 			tpSettings.PassList = m["passList"].([]string)

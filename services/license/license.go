@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"os/exec"
 
 	"github.com/untangle/packetd/plugins/threatprevention"
 	"github.com/untangle/packetd/plugins/throughput"
@@ -94,7 +95,11 @@ func Startup() {
 		} else {
 			cmd.NewState = StateDisable
 		}
-		SetAppState(cmd)
+		SetAppState(cmd, true)
+	}
+	err = RefreshLicenses() 
+	if err != nil {
+		logger.Warn("Not able to restart CLS: %v\n", err))
 	}
 }
 
@@ -104,12 +109,12 @@ func Shutdown() {
 	// Shutdown all the licensed apps.
 	for _, o := range validApps {
 		cmd := Command{Name: o.name, NewState: StateDisable}
-		SetAppState(cmd)
+		SetAppState(cmd, false)
 	}
 }
 
 // SetAppState sets the desired state of an app.
-func SetAppState(cmd Command) error {
+func SetAppState(cmd Command, save bool) error {
 	var err error
 	var app appHook
 	logger.Debug("Setting state for app %s to %v\n", cmd.Name, cmd.NewState)
@@ -123,7 +128,20 @@ func SetAppState(cmd Command) error {
 	case StateDisable:
 		app.stop()
 	}
-	return saveAppState()
+	if save {
+		err = saveAppState()
+	}
+	return err
+}
+
+// RefreshLicences restart the client licence service
+func RefreshLicenses() error {
+	err := exec.Command("/etc/init.d/clientlic", "restart").Run()
+	if err != nil {
+		logger.Warn("license fetch failed: %s\n", err.Error())
+		return err
+	}
+	return nil
 }
 
 // IsEnabled is called from API to see if app is currently enabled.
