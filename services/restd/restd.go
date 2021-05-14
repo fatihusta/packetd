@@ -129,6 +129,7 @@ func Startup() {
 
 	api.GET("/license/enabled/:appname", licenseEnabled)
 	api.PUT("/license/setstate/:appname/:command", setAppState)
+	api.GET("/license/defaults", getLicenseDefaults)
 
 	api.GET("/wireguard/keypair", wireguardKeyPair)
 	api.POST("/wireguard/publickey", wireguardPublicKey)
@@ -738,19 +739,6 @@ func ginlogger() gin.HandlerFunc {
 		logger.LogMessageSource(logger.LogLevelDebug, logsrc, "%v %v\n", c.Request.Method, c.Request.RequestURI)
 		c.Next()
 	}
-}
-
-func fetchLicensesHandler(c *gin.Context) {
-	err := license.RefreshLicences()
-	if err != nil {
-		logger.Warn("license fetch failed: %s\n", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch license"})
-		return
-	}
-
-	logger.Notice("Fetch licenses... done\n")
-	c.JSON(http.StatusOK, gin.H{"success": true})
-	return
 }
 
 func factoryResetHandler(c *gin.Context) {

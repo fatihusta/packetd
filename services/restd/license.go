@@ -51,3 +51,23 @@ func licenseEnabled(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, gin.H{"result": result})
 }
+
+func getLicenseDefaults(c *gin.Context) {
+	logger.Debug("getLicenseDefaults()")
+	keys := license.GetLicenseDefaults()
+	// TODO, use result?
+	c.JSON(http.StatusOK, keys)
+}
+
+func fetchLicensesHandler(c *gin.Context) {
+	err := license.RefreshLicenses()
+	if err != nil {
+		logger.Warn("license fetch failed: %s\n", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch license"})
+		return
+	}
+
+	logger.Notice("Fetch licenses... done\n")
+	c.JSON(http.StatusOK, gin.H{"success": true})
+	return
+}

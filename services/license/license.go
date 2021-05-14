@@ -5,6 +5,9 @@ import (
 	"errors"
 	"io/ioutil"
 	"os/exec"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/untangle/packetd/plugins/threatprevention"
 	"github.com/untangle/packetd/plugins/throughput"
@@ -26,22 +29,19 @@ import (
 const appStateFilename = "/etc/config/appstate.json"
 
 type appHook struct {
-	name    string
 	start   func()
 	stop    func()
 	enabled func() bool
 }
 
 // licensed applications.
-var validApps []appHook = []appHook{
-	{
-		name:    "untangle-node-threat-prevention",
+var validApps map[string]appHook = map[string]appHook{
+	"untangle-node-threat-prevention": appHook{
 		start:   threatprevention.PluginStartup,
 		stop:    threatprevention.PluginShutdown,
 		enabled: threatprevention.PluginEnabled,
 	},
-	{
-		name:    "untangle-node-throughput",
+	"untangle-node-throughput": appHook{
 		start:   throughput.Restart,
 		stop:    throughput.Restart,
 		enabled: throughput.IsEnabled,
@@ -74,8 +74,17 @@ type appState struct {
 // list of app states to be used during startup
 var appStates []appState
 
+const (
+	watchDogLookTime = 20 * time.Second // EQUAL to CLS
+)
+
+var shutdownChannelLicense chan bool
+var wg sync.WaitGroup
+var watchDog *time.Timer
+
 // Startup the license service.
 func Startup() {
+	shutdownChannelLicense = make(chan bool)
 	logger.Info("Starting the license service\n")
 	err := loadAppState()
 	if err != nil {
@@ -97,20 +106,66 @@ func Startup() {
 		}
 		SetAppState(cmd, true)
 	}
-	err = RefreshLicenses() 
+	err = RefreshLicenses()
 	if err != nil {
-		logger.Warn("Not able to restart CLS: %v\n", err))
+		logger.Warn("Not able to restart CLS: %v\n", err)
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		watchDog = time.NewTimer(watchDogLookTime)
+		defer watchDog.Stop()
+		for {
+			select {
+			case <-shutdownChannelLicense:
+				logger.Info("Shutdown CLS watchdog\n")
+				return
+			case <-watchDog.C:
+				logger.Warn("Watch seen\n")
+				// do restart count?
+				refreshErr := RefreshLicenses()
+				if refreshErr != nil {
+					logger.Warn("Couldn't restart CLS: %s\n", refreshErr)
+					shutdownLicenses()
+				} else {
+					logger.Info("Restarted CLS from watchdog\n")
+				}
+				watchDog.Reset(watchDogLookTime)
+			default:
+			}
+		}
+	}()
 }
 
 // Shutdown is called when the packetd service stops
 func Shutdown() {
 	logger.Info("Shutting down the license service\n")
-	// Shutdown all the licensed apps.
-	for _, o := range validApps {
-		cmd := Command{Name: o.name, NewState: StateDisable}
+	if shutdownChannelLicense != nil {
+		close(shutdownChannelLicense)
+		wg.Wait()
+	}
+	shutdownLicenses()
+}
+
+// Shutdown all the licensed apps
+func shutdownLicenses() {
+	for name, _ := range validApps {
+		cmd := Command{Name: name, NewState: StateDisable}
 		SetAppState(cmd, false)
 	}
+}
+
+func GetLicenseDefaults() []string {
+	logger.Debug("GetLicenseDefaults()\n")
+	keys := make([]string, len(validApps))
+	i := 0
+	for k := range validApps {
+		keys[i] = k
+		i++
+	}
+	watchDog.Reset(watchDogLookTime)
+	return keys
 }
 
 // SetAppState sets the desired state of an app.
@@ -136,9 +191,14 @@ func SetAppState(cmd Command, save bool) error {
 
 // RefreshLicences restart the client licence service
 func RefreshLicenses() error {
-	err := exec.Command("/etc/init.d/clientlic", "restart").Run()
+	output, err := exec.Command("/etc/init.d/clientlic", "restart").CombinedOutput()
 	if err != nil {
 		logger.Warn("license fetch failed: %s\n", err.Error())
+		return err
+	}
+	if strings.Contains(string(output), "Command failed") {
+		logger.Warn("license fetch failed: %s\n", string(output))
+		err = errors.New(string(output))
 		return err
 	}
 	return nil
@@ -156,19 +216,18 @@ func IsEnabled(appName string) (bool, error) {
 
 // helper function to check if app is valid and return its hooks.
 func findApp(name string) (appHook, error) {
-	for _, o := range validApps {
-		if o.name == name {
-			return o, nil
-		}
+	app, ok := validApps[name]
+	if !ok {
+		return appHook{}, errAppNotFoundError
 	}
-	return appHook{}, errAppNotFoundError
+	return app, nil
 }
 
 // save the current app state.
 func saveAppState() error {
 	appStates = make([]appState, 0)
-	for _, o := range validApps {
-		appStates = append(appStates, appState{Name: o.name, IsEnabled: o.enabled()})
+	for name, o := range validApps {
+		appStates = append(appStates, appState{Name: name, IsEnabled: o.enabled()})
 	}
 	data, err := json.Marshal(appStates)
 	if err != nil {
