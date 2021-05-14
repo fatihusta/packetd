@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -150,10 +151,17 @@ func Shutdown() {
 
 // Shutdown all the licensed apps
 func shutdownLicenses() {
+	//remove license.json
+	os.Remove("/etc/config/licenses.json")
+	err := ioutil.WriteFile("/etc/config/licenses.json", []byte("{\"list\": []}"), 0444)
+	if err != nil {
+		logger.Warn("Failure to write non-license file: %v\n", err)
+	}
 	for name, _ := range validApps {
 		cmd := Command{Name: name, NewState: StateDisable}
 		SetAppState(cmd, false)
 	}
+
 }
 
 func GetLicenseDefaults() []string {
