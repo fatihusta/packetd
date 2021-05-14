@@ -76,7 +76,7 @@ type appState struct {
 var appStates []appState
 
 const (
-	watchDogLookTime = 20 * time.Second // EQUAL to CLS
+	watchDogLookTime = 6*time.Hour + 5*time.Minute // EQUAL to CLS plus a few minutes
 )
 
 var shutdownChannelLicense chan bool
@@ -107,11 +107,14 @@ func Startup() {
 		}
 		SetAppState(cmd, true)
 	}
+
+	// restart licenses
 	err = RefreshLicenses()
 	if err != nil {
 		logger.Warn("Not able to restart CLS: %v\n", err)
 	}
 
+	// watchdog for if CLS is alive
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -123,8 +126,9 @@ func Startup() {
 				logger.Info("Shutdown CLS watchdog\n")
 				return
 			case <-watchDog.C:
+				// on watch dog seen, restart license server
+				// shutdown license items if restart did not work
 				logger.Warn("Watch seen\n")
-				// do restart count?
 				refreshErr := RefreshLicenses()
 				if refreshErr != nil {
 					logger.Warn("Couldn't restart CLS: %s\n", refreshErr)
@@ -164,6 +168,7 @@ func shutdownLicenses() {
 
 }
 
+// GetLicenseDefaults gets the default validApps for MFW
 func GetLicenseDefaults() []string {
 	logger.Debug("GetLicenseDefaults()\n")
 	keys := make([]string, len(validApps))
@@ -174,6 +179,11 @@ func GetLicenseDefaults() []string {
 	}
 	watchDog.Reset(watchDogLookTime)
 	return keys
+}
+
+// ClsIsAlive resets watchdog as CLS is alive
+func ClsIsAlive() {
+	watchDog.Reset(watchDogLookTime)
 }
 
 // SetAppState sets the desired state of an app.

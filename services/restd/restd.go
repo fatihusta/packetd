@@ -130,6 +130,7 @@ func Startup() {
 	api.GET("/license/enabled/:appname", licenseEnabled)
 	api.PUT("/license/setstate/:appname/:command", setAppState)
 	api.GET("/license/defaults", getLicenseDefaults)
+	api.PUT("/license/clsalive", clsIsAlive)
 
 	api.GET("/wireguard/keypair", wireguardKeyPair)
 	api.POST("/wireguard/publickey", wireguardPublicKey)

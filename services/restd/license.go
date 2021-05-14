@@ -39,6 +39,7 @@ func setAppState(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"result": "OK"})
 }
 
+// licenseEnabled returns if an app is enabled
 func licenseEnabled(c *gin.Context) {
 	logger.Debug("licenseEnabled()\n")
 	var appName = c.Param("appname")
@@ -52,13 +53,14 @@ func licenseEnabled(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"result": result})
 }
 
+// getLicenseDefaults gets the licenseable apps for packetd
 func getLicenseDefaults(c *gin.Context) {
 	logger.Debug("getLicenseDefaults()")
 	keys := license.GetLicenseDefaults()
-	// TODO, use result?
 	c.JSON(http.StatusOK, keys)
 }
 
+// fetchLicenseHandler restarts the CLS to immediately fetch licenses
 func fetchLicensesHandler(c *gin.Context) {
 	err := license.RefreshLicenses()
 	if err != nil {
@@ -70,4 +72,11 @@ func fetchLicensesHandler(c *gin.Context) {
 	logger.Notice("Fetch licenses... done\n")
 	c.JSON(http.StatusOK, gin.H{"success": true})
 	return
+}
+
+// clsIsAlive is called when CLS is alive
+func clsIsAlive(c *gin.Context) {
+	license.ClsIsAlive()
+	logger.Info("CLS is Alive\n")
+	c.JSON(http.StatusOK, gin.H{"result": "OK"})
 }
