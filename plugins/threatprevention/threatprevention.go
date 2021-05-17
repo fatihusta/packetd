@@ -21,12 +21,18 @@ import (
 
 const pluginName = "threatprevention"
 
-var DEFAULT_SENSITIVITY = 20
+var defaultSensitivity = 20
 
 var ignoreIPBlocks []*net.IPNet
 var localNetworks []*net.IPNet
 var rejectInfo map[string]interface{}
 var rejectInfoLock sync.RWMutex
+
+var httpServer http.Server
+var httpExitDone sync.WaitGroup
+
+var httpsServer http.Server
+var httpsExitDone sync.WaitGroup
 
 type contextKey struct {
 	key string
@@ -40,7 +46,7 @@ type tpSettingType struct {
 }
 
 var tpSettings tpSettingType
-
+var pluginEnabled bool
 var connContextKey = &contextKey{"http-conn"}
 
 var redirectReplyTemplate = `<html>
@@ -62,6 +68,13 @@ var redirectReplyTemplate = `<html>
 func PluginStartup() {
 	logger.Info("PluginStartup(%s) has been called\n", pluginName)
 
+	if pluginEnabled {
+		return
+	}
+
+	ignoreIPBlocks = make([]*net.IPNet, 0)
+	localNetworks = make([]*net.IPNet, 0)
+
 	for _, cidr := range []string{
 		"127.0.0.0/8",    // IPv4 loopback
 		"10.0.0.0/8",     // RFC1918
@@ -80,36 +93,66 @@ func PluginStartup() {
 	settings.RegisterSyncCallback(syncCallbackHandler)
 
 	// Need basic http server to respond to redirect to inform user why they were blocked.
-	server := http.Server{
+	httpExitDone = sync.WaitGroup{}
+	httpServer = http.Server{
 		Addr:        ":8485",
 		ConnContext: saveConnInContext,
 		Handler:     http.HandlerFunc(tpRedirectHandler),
 	}
-	go server.ListenAndServe()
+	httpExitDone.Add(1)
+	go func() {
+		defer httpExitDone.Done()
+		httpServer.ListenAndServe()
+	}()
 
 	// Need basic https server to respond to redirect to inform user why they were blocked.
-	sslserver := http.Server{
+	httpsExitDone = sync.WaitGroup{}
+	httpsServer = http.Server{
 		Addr:        ":8486",
 		ConnContext: saveConnInContext,
 		Handler:     http.HandlerFunc(tpRedirectHandler),
 	}
-	go sslserver.ListenAndServeTLS("/tmp/cert.pem", "/tmp/cert.key")
+	httpsExitDone.Add(1)
+	go func() {
+		defer httpsExitDone.Done()
+		httpsServer.ListenAndServeTLS("/tmp/cert.pem", "/tmp/cert.key")
+	}()
 
 	rejectInfo = make(map[string]interface{})
 	rejectInfoLock = sync.RWMutex{}
 
 	dispatch.InsertNfqueueSubscription(pluginName, dispatch.ThreatPreventionPriority, TpNfqueueHandler)
+	pluginEnabled = true
 }
 
 // PluginShutdown function called when the daemon is shutting down. We call Done
 // for the argumented WaitGroup to let the main process know we're finished.
 func PluginShutdown() {
 	logger.Info("PluginShutdown(%s) has been called\n", pluginName)
+
+	// Unsubscribe
+	dispatch.RemoveNfqueueSubscription(pluginName)
+
+	// Shutdown the redirect servers.
+	if err := httpServer.Shutdown(context.Background()); err != nil {
+		logger.Warn("not able to shutdown http redirect server, err: %v\n", err)
+	}
+	if err := httpsServer.Shutdown(context.Background()); err != nil {
+		logger.Warn("not able to shutdown http redirect server, err: %v\n", err)
+	}
+
+	httpExitDone.Wait()
+	httpsExitDone.Wait()
+	pluginEnabled = false
+}
+
+// PluginEnabled function returns the status (if plugin is enabled (true) or disabled (false) currently)
+func PluginEnabled() bool {
+	return pluginEnabled
 }
 
 func createSettings(m map[string]interface{}) {
-	var err error
-	tpSettings = tpSettingType{Enabled: false, Sensitivity: DEFAULT_SENSITIVITY, Redirect: false, PassList: nil}
+	tpSettings = tpSettingType{Enabled: false, Sensitivity: defaultSensitivity, Redirect: false, PassList: nil}
 	if m == nil {
 		logger.Warn("Failed to read setting value for setting threatprevention, using defaults\n")
 	} else {
@@ -121,10 +164,6 @@ func createSettings(m map[string]interface{}) {
 		}
 		if m["sensitivity"] != nil {
 			tpSettings.Sensitivity = int(m["sensitivity"].(float64))
-			if err != nil {
-				logger.Warn("not able to set threat prevention sensitivity level, using default. Err: %v\n", err.Error())
-				tpSettings.Sensitivity = DEFAULT_SENSITIVITY
-			}
 		}
 		if m["passlist"] != nil {
 			tpSettings.PassList = m["passList"].([]string)
