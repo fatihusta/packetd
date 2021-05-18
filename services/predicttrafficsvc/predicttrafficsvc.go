@@ -15,8 +15,8 @@ import (
 	"github.com/untangle/packetd/services/overseer"
 )
 
-// IPPROTO_ICMP is ip protocol 1
-const IPPROTO_ICMP = 1
+// IPProtoICMP is ip protocol 1
+const IPProtoICMP = 1
 
 // cloudAPIEndpoint is the URL of the cloud endpoint
 const cloudAPIEndpoint = "https://classify.untangle.com"
@@ -150,7 +150,7 @@ func GetTrafficClassification(ipAdd net.IP, port uint16, protoID uint8) *Classif
 		classifiedTrafficCache[mapKey] = holder
 		trafficMutex.Unlock()
 
-		if protoID == IPPROTO_ICMP {
+		if protoID == IPProtoICMP {
 			// the cloud only provides tcp and udp predictions
 			// so hardcode icmp results
 			result = icmpTrafficItem

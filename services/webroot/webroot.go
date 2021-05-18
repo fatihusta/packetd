@@ -50,12 +50,12 @@ var webrootConn = func() (net.Conn, error) { return net.Dial("tcp", "localhost:8
 // Startup is called when the packetd service starts
 func Startup() {
 	var err error
-	logger.Info("Starting up the threatprevention service\n")
+	logger.Info("Starting up the webroot service\n")
 	// Create a socket pool to handle request to the bcdtid daemon
 	connPool, err = pool.NewChannelPool(5, connMaxPoolSize, webrootConn)
 
 	if err != nil {
-		logger.Info("threatprevention not able to create connection pool %v\n", err)
+		logger.Info("webroot service not able to create connection pool %v\n", err)
 		return
 	}
 
@@ -72,7 +72,7 @@ func Startup() {
 
 // Shutdown is called when the packetd service stops
 func Shutdown() {
-	logger.Info("Shutting down the threatprevention service\n")
+	logger.Info("Shutting down the webroot service\n")
 	connPool.Close()
 }
 

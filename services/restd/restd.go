@@ -13,11 +13,11 @@ import (
 	"net/http/pprof"
 	"os"
 	"os/exec"
+	"path"
 	"reflect"
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"path"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -126,6 +126,11 @@ func Startup() {
 	api.GET("/status/diagnostics", statusDiagnostics)
 
 	api.GET("/threatprevention/lookup/:host", threatpreventionGetInfo)
+
+	api.GET("/license/enabled/:appname", licenseEnabled)
+	api.PUT("/license/setstate/:appname/:command", setAppState)
+	api.GET("/license/defaults", getLicenseDefaults)
+	api.PUT("/license/clsalive", clsIsAlive)
 
 	api.GET("/wireguard/keypair", wireguardKeyPair)
 	api.POST("/wireguard/publickey", wireguardPublicKey)
@@ -735,19 +740,6 @@ func ginlogger() gin.HandlerFunc {
 		logger.LogMessageSource(logger.LogLevelDebug, logsrc, "%v %v\n", c.Request.Method, c.Request.RequestURI)
 		c.Next()
 	}
-}
-
-func fetchLicensesHandler(c *gin.Context) {
-	err := exec.Command("/usr/bin/fetch-licenses.sh").Run()
-	if err != nil {
-		logger.Warn("license fetch failed: %s\n", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch license"})
-		return
-	}
-
-	logger.Notice("Fetch licenses... done\n")
-	c.JSON(http.StatusOK, gin.H{"success": true})
-	return
 }
 
 func factoryResetHandler(c *gin.Context) {
