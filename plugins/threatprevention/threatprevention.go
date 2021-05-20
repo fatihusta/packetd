@@ -39,10 +39,10 @@ type contextKey struct {
 }
 
 type tpSettingType struct {
-	Enabled     bool     `json: "enabled"`
-	Sensitivity int      `json: "sensitivity"`
-	Redirect    bool     `json: "redirect`
-	PassList    []string `json: "passList"`
+	Enabled     bool          `json: "enabled"`
+	Sensitivity int           `json: "sensitivity"`
+	Redirect    bool          `json: "redirect`
+	PassList    []interface{} `json: "passList"`
 }
 
 var tpSettings tpSettingType
@@ -165,8 +165,8 @@ func createSettings(m map[string]interface{}) {
 		if m["sensitivity"] != nil {
 			tpSettings.Sensitivity = int(m["sensitivity"].(float64))
 		}
-		if m["passlist"] != nil {
-			tpSettings.PassList = m["passList"].([]string)
+		if m["passList"] != nil {
+			tpSettings.PassList = m["passList"].([]interface{})
 		}
 	}
 }
@@ -179,8 +179,9 @@ func syncCallbackHandler() {
 
 	logger.Debug("tpSettings are (enabled, level, redirect, passList) %v\n", tpSettings)
 	for _, entry := range tpSettings.PassList {
-		logger.Debug("Inserting CIDR into ignore list: %s\n", entry)
-		_, pass, _ := net.ParseCIDR(entry)
+		p := entry.(map[string]interface{})
+		logger.Debug("Inserting CIDR into ignore list: %s\n", p["host"])
+		_, pass, _ := net.ParseCIDR(p["host"].(string))
 		ignoreIPBlocks = append(ignoreIPBlocks, pass)
 	}
 
