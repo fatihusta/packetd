@@ -245,7 +245,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	srvPort := mess.MsgTuple.ServerPort
 	// Inbound connections use IPdb
 	if dstAddr != nil && srcAddr != nil && !isOnNetworkList(srcAddr, localNetworks) && isOnNetworkList(dstAddr, localNetworks) {
-		webrootResult, err = webroot.Lookup(dstAddr.String(), true)
+		webrootResult, err = webroot.Lookup(srcAddr.String(), true)
 	} else if srvPort == 80 || srvPort == 443 { // For outbound HTTP/HTTPS use URLdb.
 		webrootResult, err = webroot.Lookup(dstAddr.String(), false)
 	} else { // Everyting else use IPdb.
