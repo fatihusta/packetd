@@ -178,6 +178,7 @@ func syncCallbackHandler() {
 	createSettings(systemTPsettings.(map[string]interface{}))
 
 	logger.Debug("tpSettings are (enabled, level, redirect, passList) %v\n", tpSettings)
+	ignoreIPBlocks = nil
 	for _, entry := range tpSettings.PassList {
 		p := entry.(map[string]interface{})
 		logger.Debug("Inserting CIDR into ignore list: %s\n", p["host"])
@@ -187,7 +188,7 @@ func syncCallbackHandler() {
 
 	// Get Local LAN networks.
 	networks, _ := settings.GetSettings([]string{"network", "interfaces"})
-
+	localNetworks = nil
 	for _, intface := range networks.([]interface{}) {
 		if m, ok := intface.(map[string]interface{}); ok {
 			if m["wan"].(bool) || !m["enabled"].(bool) || m["v4StaticPrefix"] == nil || m["v4StaticAddress"] == nil {
