@@ -39,10 +39,10 @@ type contextKey struct {
 }
 
 type tpSettingType struct {
-	Enabled     bool     `json: "enabled"`
-	Sensitivity int      `json: "sensitivity"`
-	Redirect    bool     `json: "redirect`
-	PassList    []string `json: "passList"`
+	Enabled     bool          `json: "enabled"`
+	Sensitivity int           `json: "sensitivity"`
+	Redirect    bool          `json: "redirect`
+	PassList    []interface{} `json: "passList"`
 }
 
 var tpSettings tpSettingType
@@ -165,8 +165,8 @@ func createSettings(m map[string]interface{}) {
 		if m["sensitivity"] != nil {
 			tpSettings.Sensitivity = int(m["sensitivity"].(float64))
 		}
-		if m["passlist"] != nil {
-			tpSettings.PassList = m["passList"].([]string)
+		if m["passList"] != nil {
+			tpSettings.PassList = m["passList"].([]interface{})
 		}
 	}
 }
@@ -178,15 +178,17 @@ func syncCallbackHandler() {
 	createSettings(systemTPsettings.(map[string]interface{}))
 
 	logger.Debug("tpSettings are (enabled, level, redirect, passList) %v\n", tpSettings)
+	ignoreIPBlocks = nil
 	for _, entry := range tpSettings.PassList {
-		logger.Debug("Inserting CIDR into ignore list: %s\n", entry)
-		_, pass, _ := net.ParseCIDR(entry)
+		p := entry.(map[string]interface{})
+		logger.Debug("Inserting CIDR into ignore list: %s\n", p["host"])
+		_, pass, _ := net.ParseCIDR(p["host"].(string))
 		ignoreIPBlocks = append(ignoreIPBlocks, pass)
 	}
 
 	// Get Local LAN networks.
 	networks, _ := settings.GetSettings([]string{"network", "interfaces"})
-
+	localNetworks = nil
 	for _, intface := range networks.([]interface{}) {
 		if m, ok := intface.(map[string]interface{}); ok {
 			if m["wan"].(bool) || !m["enabled"].(bool) || m["v4StaticPrefix"] == nil || m["v4StaticAddress"] == nil {
@@ -245,7 +247,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	srvPort := mess.MsgTuple.ServerPort
 	// Inbound connections use IPdb
 	if dstAddr != nil && srcAddr != nil && !isOnNetworkList(srcAddr, localNetworks) && isOnNetworkList(dstAddr, localNetworks) {
-		webrootResult, err = webroot.Lookup(dstAddr.String(), true)
+		webrootResult, err = webroot.Lookup(srcAddr.String(), true)
 	} else if srvPort == 80 || srvPort == 443 { // For outbound HTTP/HTTPS use URLdb.
 		webrootResult, err = webroot.Lookup(dstAddr.String(), false)
 	} else { // Everyting else use IPdb.
