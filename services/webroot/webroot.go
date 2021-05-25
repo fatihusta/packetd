@@ -100,13 +100,24 @@ func Shutdown() {
 // apiQuery talks to the bctid daemon.
 func apiQuery(cmd string, retry bool) (string, error) {
 	var err error = nil
-	s, _ := connPool.Get()
+
+	if !Enabled {
+		logger.Warn("BCTID API Query attempted, but webroot service is disabled\n")
+		return "", errors.New("Webroot service is disabled")
+	}
+
+	s, err := connPool.Get()
+	if err != nil {
+		logger.Warn("Unable to open connection pool for bctid: %s\n", err)
+		return "", err
+	}
+	defer s.Close()
 	fmt.Fprintf(s, "%s\r\n", cmd)
 	result, err := bufio.NewReader(s).ReadString('\n')
 	if err != nil {
-		logger.Info("threatprevention, not able to obtain connection to bctid\n")
+		logger.Warn("Unable to obtain connection to bctid\n")
+		return "", err
 	}
-	s.Close()
 
 	return result, err
 }
@@ -155,9 +166,12 @@ func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 		}
 		res, err = queryIP(ip)
 		if err != nil {
-			updateCache(&repuIPCache, ip, res)
-
+			logger.Warn("Unable to run IP query for %s, err: %s\n", ip, err)
+			return nil, err
 		}
+
+		updateCache(&repuIPCache, ip, res)
+
 	} else { // URL DB
 		repuURLCache.lock.RLock()
 		entry, ok = repuURLCache.data[ip]
@@ -170,8 +184,11 @@ func Lookup(ip string, ipDB bool) ([]LookupResult, error) {
 		}
 		res, err = queryURL(ip)
 		if err != nil {
-			updateCache(&repuURLCache, ip, res)
+			logger.Warn("Unable to run URL query for %s, err: %s\n", ip, err)
+			return nil, err
 		}
+
+		updateCache(&repuURLCache, ip, res)
 	}
 
 	logger.Debug("Lookup, result %v\n", res)
