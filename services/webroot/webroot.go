@@ -69,6 +69,7 @@ func Startup() {
 
 	if err != nil {
 		logger.Warn("webroot service not able to create connection pool %v\n", err)
+		Enabled = false
 		return
 	}
 
@@ -87,7 +88,10 @@ func Startup() {
 // Shutdown is called when the packetd service stops
 func Shutdown() {
 	logger.Info("Shutting down the webroot service\n")
-	connPool.Close()
+	if Enabled {
+		connPool.Close()
+	}
+
 	Enabled = false
 
 	// Shutdown bctid service
