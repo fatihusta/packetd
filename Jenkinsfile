@@ -43,7 +43,7 @@ pipeline {
         }
 
         stage('Build glibc') {
-	  agent { label 'mfw' }
+	  agent { label 'docker' }
 
           environment {
             libc = 'glibc'
@@ -73,7 +73,7 @@ pipeline {
     stage('Test') {
       parallel {
         stage('Test musl') {
-	  agent { label 'mfw' }
+	  agent { label 'docker' }
 
           environment {
             libc = 'musl'
@@ -98,7 +98,7 @@ pipeline {
         }
 
 	stage('Test libc') {
-	  agent { label 'mfw' }
+	  agent { label 'docker' }
 
 	  environment {
 	    libc = 'glibc'
