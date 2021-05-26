@@ -201,6 +201,16 @@ func syncCallbackHandler() {
 			localNetworks = append(localNetworks, l)
 		}
 	}
+
+	//Shutdown/Startup webroot service as well, only when the state changes
+	if !webroot.Enabled && tpSettings.Enabled {
+		webroot.Startup()
+	}
+
+	if webroot.Enabled && !tpSettings.Enabled {
+		webroot.Shutdown()
+	}
+
 }
 
 // TpNfqueueHandler receives a NfqueueMessage which includes a Tuple and
@@ -213,7 +223,7 @@ func TpNfqueueHandler(mess dispatch.NfqueueMessage, ctid uint32, newSession bool
 	var webrootResult []webroot.LookupResult
 	result.SessionRelease = true
 
-	if !tpSettings.Enabled {
+	if !tpSettings.Enabled || !webroot.Enabled {
 		return result
 	}
 
