@@ -56,8 +56,7 @@ func Startup() {
 	var err error
 	logger.Info("Starting up the webroot service\n")
 
-	// Start bctid if needed
-	// Shutdown bctid service
+	// Start bctid service
 	_, err = exec.Command("/etc/init.d/bctid", "start").CombinedOutput()
 	if err != nil {
 		logger.Warn("Unable to start bctid! %s\n", err)

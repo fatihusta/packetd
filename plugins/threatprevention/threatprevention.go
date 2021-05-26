@@ -202,10 +202,12 @@ func syncCallbackHandler() {
 		}
 	}
 
-	//Shutdown/Startup webroot service as well
-	if tpSettings.Enabled {
+	//Shutdown/Startup webroot service as well, only when the state changes
+	if !webroot.Enabled && tpSettings.Enabled {
 		webroot.Startup()
-	} else {
+	}
+
+	if webroot.Enabled && !tpSettings.Enabled {
 		webroot.Shutdown()
 	}
 
