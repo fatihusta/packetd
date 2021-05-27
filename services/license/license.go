@@ -137,7 +137,6 @@ func Startup() {
 					logger.Info("Restarted CLS from watchdog\n")
 				}
 				watchDog.Reset(watchDogLookTime)
-			default:
 			}
 		}
 	}()
