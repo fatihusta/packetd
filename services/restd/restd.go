@@ -154,7 +154,6 @@ func Startup() {
 	api.POST("/renewdhcp/:device", renewDhcp)
 	// files
 	engine.Static("/admin", "/www/admin")
-	engine.Static("/ui", "/www/ui")
 	engine.Static("/settings", "/www/settings")
 	engine.Static("/reports", "/www/reports")
 	engine.Static("/setup", "/www/setup")
@@ -229,12 +228,12 @@ func noRouteHandler(c *gin.Context) {
 		return
 	}
 
-	// check if the route is for the UI SPA
-	if strings.HasPrefix(c.Request.URL.Path, "/ui/") {
+	// check if the route is for the admin SPA
+	if strings.HasPrefix(c.Request.URL.Path, "/admin/") {
 		// check if it is a tidy URL route and not a file request
 		ext := path.Ext(c.Request.RequestURI)
 		if ext == "" {
-			c.File("/www/ui/index.html")
+			c.File("/www/admin/index.html")
 			return
 		}
 	}
