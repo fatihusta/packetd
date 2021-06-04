@@ -154,10 +154,7 @@ func Startup() {
 	api.POST("/renewdhcp/:device", renewDhcp)
 	// files
 	engine.Static("/admin", "/www/admin")
-	engine.Static("/settings", "/www/settings")
-	engine.Static("/reports", "/www/reports")
-	engine.Static("/setup", "/www/setup")
-	engine.Static("/static", "/www/static")
+
 	// handle 404 routes
 	engine.NoRoute(noRouteHandler)
 
@@ -216,7 +213,7 @@ func rootHandler(c *gin.Context) {
 	if isSetupWizardCompleted() {
 		c.Redirect(http.StatusTemporaryRedirect, "/admin")
 	} else {
-		c.Redirect(http.StatusTemporaryRedirect, "/setup")
+		c.Redirect(http.StatusTemporaryRedirect, "/admin/setup")
 	}
 }
 
