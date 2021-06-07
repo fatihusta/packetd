@@ -43,8 +43,8 @@ var validApps map[string]appHook = map[string]appHook{
 		enabled: threatprevention.PluginEnabled,
 	},
 	"untangle-node-throughput": appHook{
-		start:   throughput.Restart,
-		stop:    throughput.Restart,
+		start:   throughput.Start,
+		stop:    throughput.Stop,
 		enabled: throughput.IsEnabled,
 	},
 }

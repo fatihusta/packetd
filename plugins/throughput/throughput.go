@@ -6,7 +6,19 @@ import (
 	"github.com/untangle/packetd/services/logger"
 )
 
-var qosEnabled = true
+var qosEnabled = false
+
+// Start starts QoS
+func Start() {
+	qosEnabled = true
+	Restart()
+}
+
+// Stop stops QoS
+func Stop() {
+	qosEnabled = false
+	Restart()
+}
 
 // Restart() is called when there are any qos license changes.
 func Restart() {
@@ -19,7 +31,7 @@ func Restart() {
 	}
 }
 
-// IsEnabled() is called to inspect if qos is running. Always returns true.
+// IsEnabled() is called to inspect if qos is running.
 func IsEnabled() bool {
 	return qosEnabled
 }
