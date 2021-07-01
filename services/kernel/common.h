@@ -156,6 +156,3 @@ struct timespec calculate_pause(struct timespec start,struct timespec end,int sp
 
 int add_set_elem(char *fam, char *table, char *set, uint32_t ctid, uint64_t timeout);
 int del_set_elem(char *fam, char *table, char *set, uint32_t ctid);
-void bypass_via_nft_set(uint32_t ctid, uint64_t timeout);
-void remove_bypass_entry(uint32_t ctid);
-

@@ -136,13 +136,3 @@ int add_set_elem(char *fam, char *table, char *set, uint32_t ctid, uint64_t time
 {
 	return manage_set_elem(NFT_MSG_NEWSETELEM, fam, table, set, ctid, timeout);
 }
-
-void bypass_via_nft_set(uint32_t ctid, uint64_t timeout)
-{
-	add_set_elem("inet", "packetd", "bypass_packetd", ctid, timeout);
-}
-
-void remove_bypass_entry(uint32_t ctid)
-{
-	del_set_elem("inet", "packetd", "bypass_packetd", ctid);
-}

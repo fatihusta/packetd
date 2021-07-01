@@ -7,7 +7,6 @@ import (
 
 	"github.com/untangle/packetd/services/dict"
 	"github.com/untangle/packetd/services/logger"
-	"github.com/untangle/packetd/services/kernel"
 	"github.com/untangle/packetd/services/overseer"
 )
 
@@ -392,7 +391,6 @@ func (sess *Session) flushDict() {
 	sessInTable, found := sessionTable[sess.GetConntrackID()]
 	if found && sess == sessInTable {
 		dict.DeleteSession(sess.GetConntrackID())
-		kernel.RemoveBypassEntry(sess.GetConntrackID())
 	}
 	sessionMutex.Unlock()
 }
@@ -452,7 +450,6 @@ func cleanSessionTable() {
 			if time.Now().Sub(session.GetLastActivity()) > 10000*time.Second {
 				logger.Err("%OC|Removing stale (%v) session [%v] %v\n", "stale_session_removed", 0, time.Now().Sub(session.GetLastActivity()), ctid, session.GetClientSideTuple())
 				dict.DeleteSession(ctid)
-				kernel.RemoveBypassEntry(ctid)
 				delete(sessionTable, ctid)
 			}
 		} else {
@@ -463,7 +460,6 @@ func cleanSessionTable() {
 				}
 				overseer.AddCounter("unconfirmed_session_removed", 1)
 				dict.DeleteSession(ctid)
-				kernel.RemoveBypassEntry(ctid)
 				delete(sessionTable, ctid)
 			}
 		}
